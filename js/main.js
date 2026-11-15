@@ -1,12 +1,12 @@
 // Mythical Rule — boot, main loop, camera & touch controls, customize mode, scenarios, arena flow, saving.
 import {THREE,initGfx,renderer,scene,camera,GQ,QS,isTouch,setDayTime,uTime,H,M,ANIMALS} from './gfx.js';
-import {G,newGame,tick,log,dateStr,MONTH_SEC,DAYLEN,RATE_SEC,EVENT_GAP,rnd,pick,clamp,canAfford,costStr,place,canPlace,buildingAt,demolish,moveBuilding,repairCost,pay,footprint,cellCenter,resolvePlayerAttack,aiAttack,diplo,makeCandidate,arenaKingdoms,arenaResult,law,built,addRes,autoAssign,clampJobs} from './game.js';
+import {G,newGame,tick,log,dateStr,MONTH_SEC,DAYLEN,RATE_SEC,EVENT_GAP,rnd,pick,clamp,ri,canAfford,costStr,place,canPlace,buildingAt,demolish,moveBuilding,repairCost,pay,footprint,cellCenter,resolvePlayerAttack,aiAttack,diplo,makeCandidate,arenaKingdoms,arenaResult,law,built,addRes,autoAssign,clampJobs} from './game.js';
 import {BUILDINGS,JOBS,CELL,GRID,HALF,RELIGIONS} from './data.js';
 import {pickEvent,startEvent,resolveEvent,EVENTS} from './events.js';
-import {W,setupWorld,syncBuildings,updateWalkers,updateAnimals,updateArmies,updateWorld,march,syncHeroes,refreshAI,beastRaid,setGhost,placeGhost,showSel,removeAnimal,BASE_Y} from './world.js';
+import {W,setupWorld,syncBuildings,updateWalkers,updateAnimals,updateArmies,updateWorld,march,syncHeroes,refreshAI,beastRaid,dragonAttack,refreshPlayerBuildings,kStyle,setGhost,placeGhost,showSel,removeAnimal,BASE_Y} from './world.js';
 import {A,startArena,updateArena,setArenaInput,skipArena} from './arena.js';
 import {initAudio,setMode,setMusic,setSfx,AU,SFX} from './audio.js';
-import {$,UI,toast,openSetup,initSetup,initHud,updateHud,openPanel,closePanel,renderPanel,renderCust,modal,closeModal,drawBanner} from './ui.js';
+import {$,UI,toast,openSetup,initSetup,initHud,updateHud,openPanel,closePanel,renderPanel,renderCust,modal,closeModal,drawBanner,openKingdomEdit} from './ui.js';
 const SAVE='ashencrown_save_v1';
 let started=false,last=performance.now(),hudT=0,saveT=0,panelT=0;
 const cam={x:0,z:10,dist:95,yaw:.6,pitch:.9,tx:0,tz:10,tdist:95};
@@ -21,7 +21,7 @@ const titleScene=(()=>{const s={seed:7,ai:[]};return s;})();
 initSetup();
 $('bNew').onclick=()=>{initAudio();SFX.click();if(localStorage.getItem(SAVE)&&!confirm('Start a new kingdom? Your current kingdom will be lost.'))return;$('title').classList.add('hidden');openSetup(cfg=>{newGame(cfg);begin(true);});};
 $('bContinue').onclick=()=>{initAudio();SFX.click();try{G.s=JSON.parse(localStorage.getItem(SAVE));migrate(G.s);}catch(e){alert('Save could not be loaded.');return;}$('title').classList.add('hidden');begin(false);};
-function migrate(s){s.customJobs=s.customJobs||[];s.buffs=s.buffs||[];s.lastEvents=s.lastEvents||[];s.stats=s.stats||{built:0,battlesWon:0,battlesLost:0};s.marching=null;}
+function migrate(s){s.customJobs=s.customJobs||[];s.buffs=s.buffs||[];s.lastEvents=s.lastEvents||[];s.stats=s.stats||{built:0,battlesWon:0,battlesLost:0};s.marching=null;for(const k of s.ai){k.race=k.race||k.kind;k.style=k.style||(k.kind==='human'?'stone':k.kind);}}
 export function save(){if(G.s&&started)try{localStorage.setItem(SAVE,JSON.stringify(G.s));}catch(e){}}
 addEventListener('visibilitychange',()=>{if(document.hidden)save();});addEventListener('pagehide',save);
 
@@ -44,16 +44,24 @@ G.hooks.conquered=k=>{refreshAI(k);updateLabels(true);SFX.good();};
 G.hooks.battle=()=>{if(UI.panel==='world')renderPanel();};
 G.hooks.peaceOffer=k=>{if(G.modal)return;modal(`<div class="ic">🕊️</div><h2>${k.name} Seeks Peace</h2><p>${k.ruler}'s envoy kneels: “This war bleeds us both. Let us end it.”</p><button class="choice" id="pa"><b>Accept peace</b></button><button class="choice" id="pd"><b>Refuse. The war goes on.</b></button>`,c=>{
   c.querySelector('#pa').onclick=()=>{diplo(k,'peace','free');closeModal();toast(`Peace with ${k.name}.`,'good');updateLabels(true);};c.querySelector('#pd').onclick=()=>{k.warSince=G.s.time;closeModal();};});};
-G.hooks.fx=(n,d)=>{if(n==='beasts'&&d.b)beastRaid(d.b,d.type,d.n);if(n==='horde'&&d.k){march('ai',d.k,d.k.army*.3,null);}};
-G.hooks.flyTo=(x,z)=>{cam.tx=x;cam.tz=z;cam.tdist=110;if(isPortrait())closePanel();};
+G.hooks.fx=(n,d)=>{if(n==='beasts'&&d.b)beastRaid(d.b,d.type,d.n);if(n==='horde'&&d.k){march('ai',d.k,d.k.army*.3,null);}if(n==='dragon')dragonAttack(d);};
+G.hooks.flyTo=(x,z)=>{worldSaved=null;cam.tx=x;cam.tz=z;cam.tdist=110;if(isPortrait())closePanel();};
+// 3D realm map: the World tab flies the camera high over the whole land so every kingdom is visible in 3D
+let worldSaved=null;
+G.hooks.worldView=on=>{document.body.classList.toggle('worldmode',!!on);if(on){if(!worldSaved)worldSaved={tx:cam.tx,tz:cam.tz,tdist:cam.tdist};const p=isPortrait();const off=p?110:0;cam.tx=Math.sin(cam.yaw)*off;cam.tz=Math.cos(cam.yaw)*off;cam.tdist=p?560:430;}
+  else if(worldSaved){cam.tx=worldSaved.tx;cam.tz=worldSaved.tz;cam.tdist=worldSaved.tdist;worldSaved=null;}updateLabels(true);};
+G.hooks.editKingdom=()=>openKingdomEdit(changed=>{log(changed?`By royal decree the kingdom is now known as ${G.s.name}.`:`${G.s.name} raises new banners.`,'good');refreshPlayerBuildings();buildLabels();toast(`👑 Long live ${G.s.name}!`,'good');if(UI.panel)renderPanel();save();});
 G.hooks.startArena=()=>{closePanel();arenaIntro();};
 G.hooks.selectTool=t=>selectTool(t);
 function battleReport(m){const good=/repelled|Victory|surrender|cleansed|sealed/.test(m);toast(m,good?'good':'bad',7000);(good?SFX.good:SFX.bad)();}
 const isPortrait=()=>innerHeight>innerWidth||innerWidth<600;
 
 // ---------- labels over rival kingdoms ----------
-function buildLabels(){$('labels').innerHTML=G.s.ai.map(k=>`<div class="klab" id="kl${k.id}">${k.emblem} <span></span></div>`).join('');for(const k of G.s.ai)$('kl'+k.id).onclick=()=>{UI.hlKing=k.id;UI.panel=null;openPanel('world');};updateLabels(true);}
-function updateLabels(text){const v=new THREE.Vector3();for(const k of G.s.ai){const el=$('kl'+k.id);if(!el)continue;
+function buildLabels(){$('labels').innerHTML=`<div class="klab me" id="klMe">${G.s.emblem} <span>${esc2(G.s.name)} (You)</span></div>`+G.s.ai.map(k=>`<div class="klab" id="kl${k.id}">${k.emblem} <span></span><small></small></div>`).join('');for(const k of G.s.ai)$('kl'+k.id).onclick=()=>{UI.hlKing=k.id;UI.panel=null;openPanel('world');};updateLabels(true);}
+const esc2=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const KTYPE=k=>k.kind==='zombie'?'Undead':k.kind==='demon'?'Demons':k.kind==='orc'?'Orcs':k.race==='elf'?'Elves':k.race==='dwarf'?'Dwarves':k.style==='timber'?'Northmen':k.style==='sand'?'Sultanate':'Humans';
+function updateLabels(text){const v=new THREE.Vector3();const wm=document.body.classList.contains('worldmode');const me=$('klMe');if(me){v.set(0,30,0).project(camera);me.style.display=wm&&v.z<1?'':'none';me.style.transform=`translate(${(v.x*.5+.5)*innerWidth}px,${(-v.y*.5+.5)*innerHeight}px) translate(-50%,-50%)`;}
+  for(const k of G.s.ai){const el=$('kl'+k.id);if(!el)continue;if(text&&el.children[1])el.children[1].textContent=k.alive?` ${KTYPE(k)} · ⚔${Math.round(k.army)}`:'';
   if(text){el.children[0].textContent=k.alive?k.name+(k.vassal?' ⚜':k.status==='war'?' ⚔':k.status==='ally'?' 🤝':''):k.name+' (fallen)';el.className='klab '+(k.vassal?'vassal':k.alive?k.status:'');}
   v.set(k.x,(k.h||0)+24,k.z).project(camera);if(v.z>1||Math.abs(v.x)>1.1||Math.abs(v.y)>1.1){el.style.display='none';continue;}el.style.display='';el.style.transform=`translate(${(v.x*.5+.5)*innerWidth}px,${(-v.y*.5+.5)*innerHeight}px) translate(-50%,-50%)`;}}
 function floatText(t,x,z,y=8){const v=new THREE.Vector3(x,y,z).project(camera);if(v.z>1)return;const el=document.createElement('div');el.className='flt';el.textContent=t;el.style.transform=`translate(${(v.x*.5+.5)*innerWidth}px,${(-v.y*.5+.5)*innerHeight}px)`;$('hud').appendChild(el);
@@ -65,7 +73,7 @@ function updateCamera(dt){const k=1-Math.pow(.0005,dt);cam.x+=(cam.tx-cam.x)*k;c
   camera.position.set(cam.x+Math.sin(cam.yaw)*Math.cos(pitch)*cam.dist,gy+Math.sin(pitch)*cam.dist,cam.z+Math.cos(cam.yaw)*Math.cos(pitch)*cam.dist);
   const ch=H(camera.position.x,camera.position.z)+4;if(camera.position.y<ch)camera.position.y=ch;camera.lookAt(cam.x,gy+1,cam.z);}
 function pan(dx,dy){const s=cam.dist*.0022;const cy=Math.cos(cam.yaw),sy=Math.sin(cam.yaw);cam.tx+=(-dx*cy-dy*sy)*s;cam.tz+=(dx*sy-dy*cy)*s;const r=Math.hypot(cam.tx,cam.tz);if(r>340){cam.tx*=340/r;cam.tz*=340/r;}}
-function zoom(f){cam.tdist=clamp(cam.tdist*f,18,320);}
+function zoom(f){cam.tdist=clamp(cam.tdist*f,18,document.body.classList.contains('worldmode')?620:320);}
 
 // ---------- input ----------
 const ptrs=new Map();let gesture=null,mouseBtn=0;
@@ -113,7 +121,16 @@ function buildingInfo(b){const B=BUILDINGS[b.type];const jobs=B.jobs?Object.entr
    <div class="acts">${dmg&&b.prog>=1?`<button class="grn" id="iRep">🔨 Repair (${costStr(repairCost(b))})</button>`:''}<button id="iEdit">⚒ Edit in Customize</button></div>`,el=>{
    const r=el.querySelector('#iRep');if(r)r.onclick=()=>{const c=repairCost(b);if(!canAfford(c)){toast('Not enough resources to repair.','bad');return;}pay(c);b.repairing=true;SFX.build();toast('Builders are repairing it.','good');el.classList.add('hidden');};
    el.querySelector('#iEdit').onclick=()=>{el.classList.add('hidden');setCust(true);selectB(b);};});}
-function animalInfo(a){const A2=ANIMALS[a.type];const hunters=(G.s.jobs.hunter||0)+(G.s.jobs.soldier||0)+(G.s.jobs.guard||0);
+function mythInfo(a,A2){const p=a.g.position.clone();const force=(G.s.jobs.soldier||0)+(G.s.jobs.guard||0)+(G.s.jobs.hunter||0);
+  if(a.type==='unicorn')infoCard(`<b class="serif" style="font-size:17px;color:#e8d0ff">🦄 A Unicorn</b><div style="font-size:13px;color:#d8c8a8;margin:4px 0">A shimmering unicorn grazes at the forest edge. Your people whisper that it is a sign from the heavens.</div>
+   <div class="acts"><button class="grn" id="mA">🙏 Let it bless the land</button><button class="red" id="mB" ${force?'':'disabled'}>🏹 Hunt it for its horn</button></div>`,el=>{
+   el.querySelector('#mA').onclick=()=>{el.classList.add('hidden');addRes({faith:40});G.s.happy=Math.min(100,G.s.happy+8);const m='The unicorn bows its head and vanishes in light. +40 faith, +8 happiness.';toast(m,'good');log(m,'good');SFX.good();floatText('+40 ✨',p.x,p.z,p.y+3);removeAnimal(a);};
+   el.querySelector('#mB').onclick=()=>{el.classList.add('hidden');addRes({gold:90,faith:-30});G.s.happy=Math.max(0,G.s.happy-15);const m='The unicorn falls. Its horn sells for 90 gold, but the realm feels cursed. −30 faith, −15 happiness.';toast(m,'bad');log(m,'bad');SFX.bad();removeAnimal(a);};});
+  else infoCard(`<b class="serif" style="font-size:17px;color:#c8d8b8">👹 Forest Troll</b><div style="font-size:13px;color:#d8c8a8;margin:4px 0">A towering troll stomps through the woods. Trolls hoard treasure, and they smash anything in their way.</div>
+   <div class="acts"><button class="red" id="mA" ${force>=4?'':'disabled'}>⚔️ Slay it (${force} fighters)</button><button id="mB">🍖 Feed it 40 food to leave</button></div>${force>=4?'':'<div style="font-size:12px;color:#ff8a7a">You need at least 4 soldiers, guards or hunters.</div>'}`,el=>{
+   el.querySelector('#mA').onclick=()=>{el.classList.add('hidden');const dead=Math.random()<.6?ri(1,3):0;G.s.pop=Math.max(3,G.s.pop-dead);clampJobs();addRes({gold:70,iron:15});const m=`The troll is slain! Its hoard holds 70 gold and 15 iron.${dead?` ${dead} brave fighters died.`:''}`;toast(m,'good');log(m,'good');SFX.clang();floatText('+70 🪙',p.x,p.z,p.y+5);removeAnimal(a);};
+   el.querySelector('#mB').onclick=()=>{el.classList.add('hidden');if(!canAfford({food:40})){toast('Not enough food','bad');return;}pay({food:40});const m='The troll gobbles the food and lumbers off into the mountains.';toast(m);log(m);removeAnimal(a);};});}
+function animalInfo(a){const A2=ANIMALS[a.type];if(A2.myth)return mythInfo(a,A2);const hunters=(G.s.jobs.hunter||0)+(G.s.jobs.soldier||0)+(G.s.jobs.guard||0);
   infoCard(`<b class="serif" style="font-size:17px;color:#f0d79a">${A2.icon} ${A2.name}</b><div style="font-size:13px;color:#d8c8a8;margin:4px 0">${A2.danger?`Dangerous (${'⚠'.repeat(A2.danger)}). `:'Harmless. '}Hunting it gives about ${A2.food} food${A2.danger?' and pelts':''}.</div>
    <div class="acts"><button class="grn" id="iHunt" ${hunters?'':'disabled'}>🏹 Send hunters</button></div>${hunters?'':'<div style="font-size:12px;color:#ff8a7a">You need hunters, guards or soldiers. Build a Hunter\'s Lodge.</div>'}`,el=>{
    el.querySelector('#iHunt').onclick=()=>{el.classList.add('hidden');const p=a.g.position.clone();const risk=A2.danger*.09;let msg=`The hunt succeeds: +${A2.food} food`;addRes({food:A2.food});if(A2.danger){addRes({gold:A2.danger*6});msg+=`, +${A2.danger*6} gold from pelts`;}
@@ -154,6 +171,7 @@ addEventListener('resize',placeActRow);
 // ---------- nav & settings ----------
 document.querySelectorAll('#nav button').forEach(b=>b.onclick=()=>{initAudio();openPanel(b.dataset.p);if(G.s.tut===5&&b.dataset.p)tutorial(6);});
 $('pClose').onclick=closePanel;
+$('bKing').onclick=()=>{SFX.click();G.hooks.editKingdom();};$('topL').onclick=()=>{SFX.click();G.hooks.editKingdom();};
 $('bSet').onclick=()=>{SFX.click();modal(`<h2>⚙ Settings</h2>
   <div class="lbl">Graphics quality</div><div class="seg" id="gq">${['low','medium','high'].map(q=>`<button data-q="${q}" class="${q===GQ?'on':''}">${q[0].toUpperCase()+q.slice(1)}</button>`).join('')}</div><div style="font-size:12px;color:#bba882;margin-top:4px">Low is smoothest on older phones. High has shadows, more trees and the richest lighting.</div>
   <div class="lbl">Sound</div><div class="seg"><button id="sMus" class="${AU.music?'on':''}">🎵 Music ${AU.music?'on':'off'}</button><button id="sSfx" class="${AU.sfx?'on':''}">🔊 Effects ${AU.sfx?'on':'off'}</button></div>
@@ -196,7 +214,7 @@ function runEvent(e){if(!e)return;const c=startEvent(e);SFX.event();setMode('ten
   const show=()=>modal(`<div class="ic">${e.icon}</div><h2>${e.title}</h2><p>${e.text(c)}</p>${e.opts.map((o,i)=>{const ok=!o.can||o.can(c);return `<button class="choice" data-i="${i}" ${ok?'':'disabled'}><b>${o.t}</b>${o.hint?`<small>${o.hint}</small>`:''}</button>`;}).join('')}`,card=>{
     card.querySelectorAll('.choice').forEach(b=>b.onclick=()=>{SFX.click();const r=resolveEvent(e,c,+b.dataset.i);modal(`<div class="ic">${e.icon}</div><h2>${e.title}</h2><p>${r}</p><button class="btn gold" id="evOk" style="width:100%">Continue</button>`,cc=>{$('evOk').onclick=()=>{closeModal();setMode('kingdom');updateLabels(true);if(UI.panel)renderPanel();};});});});
   show();}
-window.__dbg={G,event:id=>{const e=EVENTS.find(e=>e.id===id)||pickEvent();if(!(e.w()>0))return false;runEvent(e);return true;},arena:()=>arenaIntro(),res:()=>addRes({gold:999,wood:999,stone:999,iron:200,food:500,faith:200}),place:(t,i,j,r=0)=>place(t,i,j,r),tick:s=>tick(s),setCust,selectTool,confirmPlace,ghost,cam,selectB,save,freeSpot:(t)=>{const g=groundAt(innerWidth/2,innerHeight*.35)||{x:0,z:0};const [w,d]=footprint(t,0);const f=nearFree(t,Math.round(g.x/CELL+HALF-w/2)+1,Math.round(g.z/CELL+HALF-d/2),0);const c=cellCenter(f.i,f.j,t,0);return Object.assign(screenOf(c.x,BASE_Y,c.z),f);},cellScreen:(i,j,t='house')=>{const c=cellCenter(i,j,t,0);return screenOf(c.x,BASE_Y,c.z);},march:(id)=>{const k=G.s.ai.find(x=>x.id===id);G.hooks.march('ai',k,20);}};
+window.__dbg={G,W,event:id=>{const e=EVENTS.find(e=>e.id===id)||pickEvent();if(!(e.w()>0))return false;runEvent(e);return true;},arena:()=>arenaIntro(),res:()=>addRes({gold:999,wood:999,stone:999,iron:200,food:500,faith:200}),place:(t,i,j,r=0)=>place(t,i,j,r),tick:s=>tick(s),setCust,selectTool,confirmPlace,ghost,cam,selectB,save,freeSpot:(t)=>{const g=groundAt(innerWidth/2,innerHeight*.35)||{x:0,z:0};const [w,d]=footprint(t,0);const f=nearFree(t,Math.round(g.x/CELL+HALF-w/2)+1,Math.round(g.z/CELL+HALF-d/2),0);const c=cellCenter(f.i,f.j,t,0);return Object.assign(screenOf(c.x,BASE_Y,c.z),f);},cellScreen:(i,j,t='house')=>{const c=cellCenter(i,j,t,0);return screenOf(c.x,BASE_Y,c.z);},march:(id)=>{const k=G.s.ai.find(x=>x.id===id);G.hooks.march('ai',k,20);}};
 
 // ---------- arena flow ----------
 function arenaIntro(){if(A.active)return;closePanel();setCust(false);$('info').classList.add('hidden');SFX.horn();
@@ -213,7 +231,7 @@ function arenaIntro(){if(A.active)return;closePanel();setCust(false);$('info').c
     if($('aAuto'))$('aAuto').onclick=()=>{sel=cands.map((c,i)=>[c.str+c.agi+c.grit,i]).sort((a,b)=>b[0]-a[0]).slice(0,3).map(x=>x[1]);render();};
     const go=mode=>{closeModal();const trib=[];const R=RELIGIONS[s.religion].fx;const mult=(R.trib||1)*L.trib;
       sel.forEach((i,n)=>{const c=cands[i];trib.push({kid:0,kname:s.name,name:c.name,str:c.str*mult,agi:c.agi*mult,grit:c.grit*mult,c1:s.c1,c2:s.c2,emblem:s.emblem,kind:'human',mine:true,isPlayer:mode==='fight'&&n===0});});
-      for(const k of ks.slice(1)){const lv=(k.kind==='human'?4.6:5)+Math.min(3,s.arenaCount*.4)+k.imm*.5;for(let j=0;j<3;j++){const st=()=>clamp(Math.round(lv+rnd(-2,2.5)),1,10);trib.push({kid:k.id,kname:k.name,name:k.kind==='human'?pick(['Brann','Sela','Corvin','Isha','Darro','Mirel','Tavish','Odile','Gareth','Ysolde','Kade','Lyra']):k.kind==='zombie'?pick(['Rotjaw','Hollow','Moaner','Grim','Bones','Shamble']):pick(['Imp','Scorch','Vexa','Cinder','Hex','Brim']),str:st(),agi:st(),grit:st(),c1:k.c1,c2:k.c2,emblem:k.emblem,kind:k.kind,mine:false,isPlayer:false});}}
+      for(const k of ks.slice(1)){const lv=(k.kind==='human'?4.6:5)+Math.min(3,s.arenaCount*.4)+k.imm*.5;for(let j=0;j<3;j++){const st=()=>clamp(Math.round(lv+rnd(-2,2.5)),1,10);trib.push({kid:k.id,kname:k.name,name:k.race==='elf'?pick(['Elowen','Faelar','Sylas','Arwen','Thranduil','Nimue']):k.race==='dwarf'?pick(['Gimrik','Brokka','Dwalin','Hilda','Thorgar','Balin']):k.kind==='orc'?pick(['Gorbag','Snaga','Urzog','Muzgash','Bolg','Shagrat']):k.kind==='human'?pick(['Brann','Sela','Corvin','Isha','Darro','Mirel','Tavish','Odile','Gareth','Ysolde','Kade','Lyra']):k.kind==='zombie'?pick(['Rotjaw','Hollow','Moaner','Grim','Bones','Shamble']):pick(['Imp','Scorch','Vexa','Cinder','Hex','Brim']),str:st(),agi:st(),grit:st(),c1:k.c1,c2:k.c2,emblem:k.emblem,kind:k.kind,race:k.race,mine:false,isPlayer:false});}}
       $('hud').classList.add('hidden');$('tip').classList.add('hidden');startArena(trib,mode,arenaEnd);};
     $('aF').onclick=()=>go('fight');$('aW').onclick=()=>go('watch');});
   render();}

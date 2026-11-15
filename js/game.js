@@ -1,5 +1,5 @@
 // Mythical Rule — kingdom state, economy simulation, AI kingdoms, diplomacy and battles.
-import {BUILDINGS,JOBS,LAWS,DEFAULT_LAWS,RELIGIONS,STANCES,DECISIONS,KINGDOM_NAMES,RULERS,PERSONALITIES,FIRST,ZOMBIE_NAMES,DEMON_NAMES,COLORS,EMBLEMS,CUSTOM_RATE,DAY_SEC,MONTH_DAYS,MONTHS,GRID,HALF,CELL} from './data.js';
+import {BUILDINGS,JOBS,LAWS,DEFAULT_LAWS,RELIGIONS,STANCES,DECISIONS,KINGDOM_NAMES,RULERS,PERSONALITIES,FIRST,ZOMBIE_NAMES,DEMON_NAMES,ORC_NAMES,MYTHIC,COLORS,EMBLEMS,CUSTOM_RATE,DAY_SEC,MONTH_DAYS,MONTHS,GRID,HALF,CELL} from './data.js';
 import {rng} from './gfx.js';
 export const G={s:null,paused:false,modal:false,hooks:{},fast:false,debug:false};
 const P=new URLSearchParams(location.search);G.debug=P.has('debug');G.fast=P.has('fast');
@@ -24,12 +24,15 @@ export function newGame(cfg){
   add('castle',13,13);add('house',10,13);add('house',10,16);add('house',19,12);add('farm',13,19);add('mill',13,9);add('well',18,17);
   // AI kingdoms
   const used=new Set([cfg.name]);const names=KINGDOM_NAMES.filter(n=>n!==cfg.name);
-  const angles=[0,1,2,3,4].map(i=>i/5*Math.PI*2+r()*0.5);const kinds=['human','human','zombie','human','demon'];
+  const defs=[['human','human','stone'],['human','elf','elf'],['zombie'],['human','human','timber'],['orc','orc','orc'],['human','dwarf','dwarf'],['demon'],['human','human','sand']];const kinds=defs.map(d=>d[0]);const angles=defs.map((d,i)=>i/defs.length*Math.PI*2+r()*0.35);
   const pers=Object.keys(PERSONALITIES);const cols=[...COLORS].sort(()=>r()-.5);
-  kinds.forEach((kind,i)=>{const a=angles[i],d=205+r()*35;
-    const k={id:i+1,kind,x:Math.cos(a)*d,z:Math.sin(a)*d,alive:true,status:kind==='human'?'peace':'war',trade:false,immortals:0,truceUntil:0,warSince:0,lastAttack:0,vassal:false};
+  kinds.forEach((kind,i)=>{const a=angles[i],d=215+r()*35;const race=defs[i][1]||kind,style=defs[i][2]||kind;
+    const k={id:i+1,kind,x:Math.cos(a)*d,z:Math.sin(a)*d,alive:true,status:kind==='human'?'peace':'war',trade:false,immortals:0,truceUntil:0,warSince:0,lastAttack:0,vassal:false,race,style};
     if(kind==='human'){k.name=names.splice(Math.floor(r()*names.length),1)[0];k.ruler=RULERS[Math.floor(r()*RULERS.length)];k.pers=pers[Math.floor(r()*pers.length)];k.c1=cols[i*2];k.c2=cols[i*2+1]===cfg.c1?'#f1e7c8':cols[i*2+1];k.emblem=EMBLEMS[Math.floor(r()*EMBLEMS.length)];
-      k.army=22+r()*16;k.gold=200;k.rel=Math.round(STANCES[cfg.stance].rel+(k.pers==='aggressive'?-25:k.pers==='honorable'?10:0)+r()*20-10);k.relig=Object.keys(RELIGIONS)[Math.floor(r()*6)];}
+      k.army=22+r()*16;k.gold=200;k.rel=Math.round(STANCES[cfg.stance].rel+(k.pers==='aggressive'?-25:k.pers==='honorable'?10:0)+r()*20-10);k.relig=Object.keys(RELIGIONS)[Math.floor(r()*6)];
+      const my=MYTHIC[race];if(my){k.name=my.names[Math.floor(r()*my.names.length)];k.ruler=my.rulers[Math.floor(r()*my.rulers.length)];k.c1=my.c1;k.c2=my.c2===cfg.c1?'#f1e7c8':my.c2;k.emblem=my.emblem;k.pers=my.pers;k.relig=race==='elf'?'forest':'steel';k.army=race==='dwarf'?34:28;}
+      if(style==='sand'){k.emblem='☀️';}if(style==='timber'){k.emblem='🐺';}}
+    else if(kind==='orc'){k.name='Gorthak Horde';k.ruler=ORC_NAMES[Math.floor(r()*ORC_NAMES.length)];k.c1='#3d4a14';k.c2='#8b1a1a';k.emblem='🪓';k.army=32;k.rel=-90;k.pers='horde';}
     else if(kind==='zombie'){k.name='The Rotlands';k.ruler=ZOMBIE_NAMES[Math.floor(r()*ZOMBIE_NAMES.length)];k.c1='#2c3a26';k.c2='#7a9a5a';k.emblem='💀';k.army=30;k.rel=-100;k.pers='horde';}
     else{k.name='Hellmouth';k.ruler=DEMON_NAMES[Math.floor(r()*DEMON_NAMES.length)];k.c1='#3a0a0a';k.c2='#ff5a1a';k.emblem='😈';k.army=34;k.rel=-80;k.pers='demon';}
     s.ai.push(k);});
@@ -156,7 +159,7 @@ export function diplo(k,action,arg){const s=G.s;const Pp=PERSONALITIES[k.pers]||
   case 'peace':{const cost=Math.round(40+k.army*1.5);if(arg!=='free'&&s.res.gold<cost)return [false,`They demand ${cost} gold for peace.`];
     const want=k.pers==='aggressive'?.45:.7;if(arg!=='free'&&armyPower()<k.army*want&&Math.random()<.5){k.rel-=5;return [false,`${k.ruler} laughs at your envoy. "Peace? We are winning!"`];}
     if(arg!=='free')s.res.gold-=cost;k.status='peace';k.rel=Math.max(k.rel,-10);msg=`Peace signed with ${k.name}.`;break;}
-  case 'truce':{const cost=arg||{faith:40,gold:60};if(!canAfford(cost))return [false,'They want '+costStr(cost)];pay(cost);k.truceUntil=s.time+DAYLEN()*3;msg=k.kind==='demon'?`${k.ruler} accepts your offering. The demons will stay away for 3 days.`:`The dead are quiet for 3 days.`;break;}
+  case 'truce':{const cost=arg||{faith:40,gold:60};if(!canAfford(cost))return [false,'They want '+costStr(cost)];pay(cost);k.truceUntil=s.time+DAYLEN()*3;msg=k.kind==='demon'?`${k.ruler} accepts your offering. The demons will stay away for 3 days.`:k.kind==='orc'?`${k.ruler} takes your tribute and grunts. The horde will leave you alone for 3 days.`:`The dead are quiet for 3 days.`;break;}
   case 'tribute':{if(armyPower()<k.army*1.3){k.rel-=12;return [false,`${k.ruler} refuses and is insulted (−12). Your army is too weak to scare them.`];}const g=Math.round(30+k.army);s.res.gold+=g;k.rel-=20;msg=`${k.name} pays you ${g} gold tribute out of fear.`;break;}
   }
   log(msg,'diplo');return [ok,msg];}
@@ -175,7 +178,7 @@ export function resolvePlayerAttack(){const s=G.s,m=s.marching;if(!m)return;s.ma
   const lostSold=Math.round((s.jobs.soldier||0)*m.frac*r.aLoss);s.jobs.soldier=Math.max(0,(s.jobs.soldier||0)-lostSold);s.pop=Math.max(3,s.pop-lostSold);k.army=Math.max(0,k.army*(1-r.dLoss));
   let msg;if(r.win){s.stats.battlesWon++;const loot=Math.round((40+k.army*.8)*(s.stance==='warlike'?1.5:1));s.res.gold+=loot;s.res.food+=Math.round(loot*.6);s.happy=clamp(s.happy+(s.stance==='warlike'?8:3),0,100);
     msg=`Victory at ${k.name}! Looted ${loot} gold. Lost ${lostSold} soldiers.`;
-    if(k.army<8){k.alive=k.kind==='human'?true:false;if(k.kind==='human'){k.vassal=true;k.status='vassal';k.army=10;msg+=` ${k.name} surrenders and becomes your vassal (+15 gold/day)!`;}else{msg+=k.kind==='zombie'?' The Rotlands are cleansed by fire!':' The Hellmouth is sealed!';}hook('conquered',k);}
+    if(k.army<8){k.alive=k.kind==='human'?true:false;if(k.kind==='human'){k.vassal=true;k.status='vassal';k.army=10;msg+=` ${k.name} surrenders and becomes your vassal (+15 gold/day)!`;}else{msg+=k.kind==='zombie'?' The Rotlands are cleansed by fire!':k.kind==='orc'?' The orc horde is broken and scattered!':' The Hellmouth is sealed!';}hook('conquered',k);}
   }else{s.stats.battlesLost++;s.happy=clamp(s.happy-6,0,100);msg=`Defeat at ${k.name}. Your army retreats, ${lostSold} soldiers lost.`;}
   log(msg,r.win?'good':'bad');hook('battle',msg,r.win);return msg;}
 
@@ -193,7 +196,7 @@ export function aiAttack(k,power){const s=G.s;const ally=allyHelp();const def=(d
 let aiDayT=0;
 function aiTick(dt){const s=G.s;aiDayT+=dt;const D=RATE_SEC();if(aiDayT<D/4)return;const step=aiDayT/D;aiDayT=0;const day=s.time/D;
   for(const k of s.ai){if(!k.alive)continue;const Pp=PERSONALITIES[k.pers]||{aggro:1};
-    const grow=(k.kind==='zombie'?3.2:k.kind==='demon'?2.8:2.2+(k.pers==='aggressive'?1:0))*step*(1+day/30);k.army=Math.min(k.army+grow,60+day*6);
+    const grow=(k.kind==='zombie'?3.2:k.kind==='demon'?2.8:k.kind==='orc'?3:k.race==='dwarf'?2.6:2.2+(k.pers==='aggressive'?1:0))*step*(1+day/30);k.army=Math.min(k.army+grow,60+day*6);
     if(k.vassal){k.army=Math.min(k.army,20);continue;}
     if(k.kind==='human'){
       const base=stance().rel+(k.pers==='aggressive'?-15:k.pers==='honorable'?5:0)+(k.trade?15:0)+(k.status==='ally'?20:0)+(k.relig===s.religion?10:0);k.rel+=(base-k.rel)*.02*step*4;
@@ -208,7 +211,7 @@ function aiTick(dt){const s=G.s;aiDayT+=dt;const D=RATE_SEC();if(aiDayT<D/4)retu
 // ---------- arena helpers ----------
 export function makeCandidate(){const s=G.s;const t=s.tribTrain;const bonus=(built('training').length?.5:0)+(built('arena').length?.5:0);
   const st=()=>clamp(Math.round(rnd(2,7)+bonus+t*.5),1,10);return {name:pick(FIRST),str:st(),agi:st(),grit:st(),job:pick(['Farmer','Hunter','Smith','Soldier','Woodcutter','Miner','Baker','Shepherd','Guard','Scribe'])};}
-export function arenaKingdoms(){return [{id:0,name:G.s.name,kind:'human',c1:G.s.c1,c2:G.s.c2,emblem:G.s.emblem,mine:true,imm:G.s.immortals.filter(m=>m.mine).length}].concat(G.s.ai.filter(k=>k.alive).map(k=>({id:k.id,name:k.name,kind:k.kind,c1:k.c1,c2:k.c2,emblem:k.emblem,imm:k.immortals})));}
+export function arenaKingdoms(){return [{id:0,name:G.s.name,kind:'human',c1:G.s.c1,c2:G.s.c2,emblem:G.s.emblem,mine:true,imm:G.s.immortals.filter(m=>m.mine).length}].concat(G.s.ai.filter(k=>k.alive).map(k=>({id:k.id,name:k.name,kind:k.kind,race:k.race,c1:k.c1,c2:k.c2,emblem:k.emblem,imm:k.immortals})));}
 export function arenaResult(winnerKid,champ,myDead){const s=G.s;s.arenaCount++;s.pop=Math.max(3,s.pop-myDead);clampJobs();s.tribTrain=0;
   if(winnerKid===0){s.arenaWins++;s.immortals.push({name:champ,mine:true,month:s.month});s.happy=clamp(s.happy+15,0,100);log(`🏆 ${champ} of ${s.name} won the Arena and is now IMMORTAL! Your armies fight with +30% strength.`,'good');
     for(const k of s.ai)if(k.kind==='human'&&k.alive)k.rel+=k.pers==='honorable'?5:-3;}

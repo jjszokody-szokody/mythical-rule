@@ -9,7 +9,8 @@
 html,body{margin:0;height:100%;overflow:hidden;background:#0a0806;font-family:-apple-system,system-ui,"Segoe UI",sans-serif;color:#f3e6c8;touch-action:none;-webkit-text-size-adjust:100%}
 canvas#c{display:block;position:fixed;inset:0;width:100%;height:100%}
 .hidden{display:none!important}
-.serif,h1,h2,h3,.logo{font-family:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Times New Roman",serif}
+h2,.logo{font-family:Copperplate,"Copperplate Gothic Light","Iowan Old Style",Palatino,Georgia,serif;letter-spacing:.04em}
+.serif,h1,h3{font-family:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Times New Roman",serif}
 #vig{position:fixed;inset:0;pointer-events:none;background:radial-gradient(ellipse at center,transparent 55%,rgba(0,0,0,.55) 100%);z-index:1}
 .screen{position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:max(16px,env(safe-area-inset-top)) 16px max(16px,env(safe-area-inset-bottom));text-align:center;overflow:auto}
 #title{background:radial-gradient(ellipse at 50% 30%,rgba(40,22,8,.35),rgba(5,4,3,.9) 75%),url(title.jpg) center/cover no-repeat #0a0806}
@@ -83,6 +84,8 @@ select,input[type=text]{font:inherit;background:#1a140e;color:#f3e6c8;border:1px
 .toast{background:rgba(15,11,8,.92);border:1px solid #b8954a;border-radius:10px;padding:7px 12px;font-size:13px;text-align:center;transition:opacity .5s,transform .5s;box-shadow:0 4px 14px #000}.toast.bad{border-color:#d84a2a}.toast.good{border-color:#5aa04a}.toast.big{font-size:15px;padding:10px 14px}
 #labels{position:absolute;inset:0;overflow:hidden}
 .klab{position:absolute;left:0;top:0;pointer-events:auto;cursor:pointer;background:rgba(15,11,8,.82);border:1px solid #7a6440;border-radius:10px;padding:3px 8px;font-size:12px;font-weight:700;white-space:nowrap;display:flex;align-items:center;gap:4px}
+.klab small{font-weight:600;color:#c8b48a;font-size:10px;display:none}.worldmode .klab{font-size:14px;padding:5px 10px}.worldmode .klab small{display:inline}.klab.me{border-color:#ffd060;color:#ffe9a8;background:rgba(40,28,6,.88)}
+.worldmode #panel{max-height:40vh}@media (min-aspect-ratio:1/1) and (min-width:600px){.worldmode #panel{width:340px}}#topL{cursor:pointer}
 .klab.war{border-color:#ff5a3a;color:#ffc0b0}.klab.ally{border-color:#7ad86a}.klab.vassal{border-color:#ffd060}
 .flt{position:absolute;left:0;top:0;font-weight:900;font-size:15px;color:#9fe870;text-shadow:0 2px 3px #000;pointer-events:none;transition:transform 1.4s ease-out,opacity 1.4s}
 /* customize */
@@ -134,7 +137,7 @@ select,input[type=text]{font:inherit;background:#1a140e;color:#f3e6c8;border:1px
 </head><body>
 <canvas id="c"></canvas><div id="vig"></div>
 <div id="title" class="screen">
-  <div class="logo">MYTHICAL RULE<small>KINGDOMS · WAR · THE ARENA</small></div>
+  <div class="logo">MYTHICAL RULE<small>KINGDOMS · MONSTERS · THE ARENA</small></div>
   <div class="sub">Rule your kingdom. Survive the dark. Win immortality.</div>
   <button id="bContinue" class="btn gold hidden">▶ Continue</button>
   <button id="bNew" class="btn">👑 Found a New Kingdom</button>
@@ -148,7 +151,7 @@ select,input[type=text]{font:inherit;background:#1a140e;color:#f3e6c8;border:1px
 </div></div>
 <div id="hud" class="hidden">
   <div id="topL"><canvas id="miniBanner" width="64" height="128"></canvas><div><b id="kName" class="serif"></b><div id="kDate"></div><div id="kArena"></div></div></div>
-  <div id="topR"><button id="bCustom">⚒ Customize</button><div style="display:flex;gap:6px"><button class="rbtn" id="bHelp" title="Help">?</button><button class="rbtn" id="bSet" title="Settings">⚙</button></div></div>
+  <div id="topR"><button id="bCustom">⚒ Customize</button><div style="display:flex;gap:6px"><button class="rbtn" id="bKing" title="Kingdom name &amp; colors">🎨</button><button class="rbtn" id="bHelp" title="Help">?</button><button class="rbtn" id="bSet" title="Settings">⚙</button></div></div>
   <div id="resBar"></div>
   <div id="labels"></div>
   <div id="toasts"></div>

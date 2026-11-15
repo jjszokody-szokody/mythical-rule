@@ -1,5 +1,5 @@
 // Mythical Rule — the living world: kingdom buildings, rival kingdoms, citizens, animals, marching armies.
-import {THREE,WORLD,H,buildTerrain,buildRoads,buildGrass,buildForests,scene,camera,QS,GQ,buildingModel,makeBanner,makePerson,animPerson,makeAnimal,animAnimal,ANIMALS,Particles,scaffold,M,rng,Kit,kitPlace,segDist,slopeAt,night} from './gfx.js';
+import {THREE,WORLD,H,buildTerrain,buildRoads,buildGrass,buildForests,scene,camera,QS,GQ,buildingModel,makeBanner,makePerson,animPerson,makeAnimal,animAnimal,ANIMALS,makeFlyer,animFlyer,Particles,scaffold,M,rng,Kit,kitPlace,segDist,slopeAt,night} from './gfx.js';
 import {G,cellCenter,footprint,DAYLEN,built,rnd,pick,clamp,resolvePlayerAttack,aiAttack,aiById,log} from './game.js';
 import {BUILDINGS,JOBS,CELL,GRID,HALF,RELIGIONS} from './data.js';
 import {SFX} from './audio.js';
@@ -27,31 +27,36 @@ export function setupWorld(){const s=G.s;WORLD.seed=s.seed;const r=rng(s.seed+11
   x.strokeStyle='rgba(255,210,80,.9)';x.lineWidth=6;x.strokeRect(3,3,1018,1018);
   const gt=new THREE.CanvasTexture(cv);W.grid=new THREE.Mesh(new THREE.PlaneGeometry(GRID*CELL,GRID*CELL),new THREE.MeshBasicMaterial({map:gt,transparent:true,depthWrite:false,opacity:.8}));W.grid.rotation.x=-Math.PI/2;W.grid.position.y=BASE_Y+.08;W.grid.visible=false;W.grid.renderOrder=2;scene.add(W.grid);
   W.selMesh=new THREE.Mesh(new THREE.PlaneGeometry(1,1),M.select);W.selMesh.rotation.x=-Math.PI/2;W.selMesh.visible=false;W.selMesh.renderOrder=3;scene.add(W.selMesh);
-  for(let i=0;i<QS.animals;i++)spawnAnimal();
+  for(let i=0;i<QS.animals;i++)spawnAnimal();spawnAnimal('unicorn');spawnAnimal('troll');setupFlyers();
   // ambient village folk dust motes / zombie mist
 }
 
 // ---------- rival kingdoms ----------
-export function buildAI(k){if(W.aiG[k.id]){scene.remove(W.aiG[k.id].g);}const r=rng(k.id*977+G.s.seed);const g=new THREE.Group();g.position.set(k.x,k.h,k.z);const kit=new Kit();const kind=k.alive?k.kind:'zombie';const dead=!k.alive;
-  kitPlace(kit,'castle',dead?'zombie':k.kind,0,0,0,r()*6.28,.85);const flags=[];
-  const n=k.kind==='human'?13:9;for(let i=0;i<n;i++){const a=i/n*6.28+r()*.3,d=18+r()*12;const type=k.kind==='human'?(i%5===0?'manor':i%4===1?'tavern':'house'):'house';kitPlace(kit,type,k.kind==='human'&&!dead?'human':'zombie',Math.cos(a)*d,0,Math.sin(a)*d,-a+Math.PI/2,1);}
-  if(k.kind==='human'){for(let i=0;i<3;i++){const a=i*2.1+r(),d=36;kitPlace(kit,'farm','human',Math.cos(a)*d,0,Math.sin(a)*d,-a,.9);}}
-  const N=40;for(let i=0;i<N;i++){const a=i/N*6.28;if(i%10===0){kitPlace(kit,'tower',k.kind==='human'?'human':k.kind,Math.cos(a)*44,0,Math.sin(a)*44,0,1.2);flags.push([Math.cos(a)*44,9.5,Math.sin(a)*44]);continue;}if(dead&&i%3===0)continue;
-    kitPlace(kit,k.kind==='human'?'wall':'palisade',k.kind==='human'?'human':k.kind,Math.cos(a)*44,0,Math.sin(a)*44,-a+Math.PI/2,1.75);}
+export function kStyle(k){return k.style||(k.kind==='human'?'stone':k.kind);}
+export function buildAI(k){if(W.aiG[k.id]){scene.remove(W.aiG[k.id].g);}const r=rng(k.id*977+G.s.seed);const g=new THREE.Group();g.position.set(k.x,k.h,k.z);const kit=new Kit();const dead=!k.alive;
+  const st=dead?'zombie':kStyle(k);const flags=[];
+  kitPlace(kit,'castle',st,0,0,0,r()*6.28,.85);
+  const HT={stone:['manor','house','tavern','house','house'],timber:['longhouse','longhouse','house'],sand:['domehouse'],elf:['elfhouse'],dwarf:['dwarfhouse','dwarfhouse','smithy'],orc:['hut'],zombie:['house'],demon:['house']};
+  const civ=k.kind==='human'||k.kind==='orc';const n=civ?(st==='orc'?16:13):9;
+  for(let i=0;i<n;i++){const a=i/n*6.28+r()*.3,d=18+r()*12;const L=HT[st]||HT.stone;const type=L[i%L.length];kitPlace(kit,type,dead?'zombie':st==='zombie'||st==='demon'?'zombie':st,Math.cos(a)*d,0,Math.sin(a)*d,-a+Math.PI/2,st==='elf'?1.15:1);}
+  if(k.kind==='human'&&!dead){const ft=st==='elf'?'garden':st==='dwarf'?'mine':'farm';for(let i=0;i<3;i++){const a=i*2.1+r(),d=36;kitPlace(kit,ft,st,Math.cos(a)*d,0,Math.sin(a)*d,-a,.9);}}
+  const stoneWall=['stone','sand','elf','dwarf'].includes(st);const N=40;
+  for(let i=0;i<N;i++){const a=i/N*6.28;if(i%10===0){if(st!=='orc'){kitPlace(kit,'tower',st,Math.cos(a)*44,0,Math.sin(a)*44,0,1.2);flags.push([Math.cos(a)*44,st==='elf'?12:9.5,Math.sin(a)*44]);continue;}}if(dead&&i%3===0)continue;
+    kitPlace(kit,stoneWall?'wall':'palisade',st,Math.cos(a)*44,0,Math.sin(a)*44,-a+Math.PI/2,1.75);}
   if(k.kind==='zombie'||dead)for(let i=0;i<22;i++){const a=r()*6.28,d=8+r()*30;kitPlace(kit,'grave','zombie',Math.cos(a)*d,0,Math.sin(a)*d,r()*6,1);}
   if(k.kind==='demon'&&!dead)for(let i=0;i<10;i++){const a=r()*6.28,d=14+r()*26;kit.add(M.lava,new THREE.CircleGeometry(2+r()*2.5,14).rotateX(-Math.PI/2),Math.cos(a)*d,.15,Math.sin(a)*d);kit.add(M.obsidian,new THREE.ConeGeometry(.8,5+r()*6,5),Math.cos(a+.3)*(d+3),3,Math.sin(a+.3)*(d+3));}
   const base=kit.build(true);g.add(base);
-  if(!dead){const bm=makeBanner(k.vassal?G.s.c1:k.c1,k.vassal?G.s.c2:k.c2,k.vassal?G.s.emblem:k.emblem,2.4);bm.position.set(0,16,0);g.add(bm);
+  if(!dead){const bm=makeBanner(k.vassal?G.s.c1:k.c1,k.vassal?G.s.c2:k.c2,k.vassal?G.s.emblem:k.emblem,2.4);bm.position.set(0,st==='elf'?29:st==='orc'?20:16,0);g.add(bm);
     for(const f of flags.slice(0,4)){const b=makeBanner(k.vassal?G.s.c1:k.c1,k.vassal?G.s.c2:k.c2,k.vassal?G.s.emblem:k.emblem,1.1);b.position.set(...f);g.add(b);}
-    if(k.kind==='demon'){const gl=glow(0xff4a10,60);gl.position.y=8;g.add(gl);} if(k.kind==='zombie'){const gl=glow(0x5aff3a,50);gl.material.opacity=.35;gl.position.y=6;g.add(gl);}}
+    if(k.kind==='demon'){const gl=glow(0xff4a10,60);gl.position.y=8;g.add(gl);} if(k.kind==='zombie'){const gl=glow(0x5aff3a,50);gl.material.opacity=.35;gl.position.y=6;g.add(gl);}if(st==='orc'){const gl=glow(0xff7a20,14);gl.position.set(0,2,6.4);g.add(gl);}if(st==='dwarf'){const gl=glow(0xffa040,12);gl.position.set(0,2,10.5);g.add(gl);}if(st==='elf'){const gl=glow(0xbfffe8,40);gl.material.opacity=.25;gl.position.y=14;g.add(gl);}}
   // inhabitants
-  const folk=[];if(!dead){const cnt=GQ==='low'?3:6;for(let i=0;i<cnt;i++){const p=makePerson({kind:k.kind,shirt:k.kind==='human'?new THREE.Color(k.c1).getHex():k.kind==='zombie'?0x4a4a3a:0x2a0a0a,armor:k.kind==='human'&&i%2===0,helmet:i%2===0,weapon:i%2===0});p.position.set(rnd(-30,30),0,rnd(-30,30));p.userData.tgt=new THREE.Vector3(rnd(-30,30),0,rnd(-30,30));g.add(p);folk.push(p);}}
+  const folk=[];if(!dead){const cnt=GQ==='low'?3:6;for(let i=0;i<cnt;i++){const p=makePerson({kind:k.kind,race:k.race,shirt:k.kind==='human'?new THREE.Color(k.c1).getHex():k.kind==='zombie'?0x4a4a3a:k.kind==='orc'?0x3a2a1a:0x2a0a0a,hair:k.race==='elf'?0xe8d8a0:k.race==='dwarf'?0x8a3a1a:undefined,armor:k.kind==='human'&&i%2===0,helmet:i%2===0,weapon:i%2===0});p.position.set(rnd(-30,30),0,rnd(-30,30));p.userData.tgt=new THREE.Vector3(rnd(-30,30),0,rnd(-30,30));g.add(p);folk.push(p);}}
   scene.add(g);W.aiG[k.id]={g,folk,k};}
 export function refreshAI(k){buildAI(k);}
 
 // ---------- player buildings ----------
 function makeB(b){const B=BUILDINGS[b.type];const g=new THREE.Group();const s=G.s;
-  const m=buildingModel(b.type,{c1:s.c1,c2:s.c2,emblem:s.emblem,relColor:RELIGIONS[s.religion].color});g.add(m);g.userData.model=m;
+  const m=buildingModel(b.type,{c1:s.c1,c2:s.c2,emblem:s.emblem,bstyle:s.bstyle,relColor:RELIGIONS[s.religion].color});g.add(m);g.userData.model=m;
   const glows=[];const L=LIGHTS[b.type];if(L)for(const q of L){const s2=glow(0xffa040,q[3]||3);s2.position.set(q[0],q[1],q[2]);s2.material.opacity=0;g.add(s2);glows.push(s2);}
   scene.add(g);return {g,i:-1,j:-1,rot:-1,scaf:null,model:m,smokeT:Math.random()*2,hpT:0,glows};}
 const LIGHTS={house:[[0,1.6,2.6,2.6]],manor:[[0,1.8,3.6,3]],tavern:[[0,1.6,3.1,3],[2.8,2.4,3.3,2]],castle:[[-1.6,3,8.4,4],[1.6,3,8.4,4],[0,9,-5,5]],barracks:[[0,2,2.4,3]],gate:[[-1.5,3,1.2,3],[1.5,3,1.2,3]],tower:[[0,4,1.9,2.6]],smithy:[[1.2,1.6,1.8,3.5]],temple:[[0,2.5,4.6,4]],market:[[0,2.2,0,5]]};
@@ -104,7 +109,7 @@ export function updateWalkers(dt){const s=G.s;walkerT-=dt;
 
 // ---------- animals ----------
 function forestPoint(minD=100){for(let t=0;t<60;t++){const a=Math.random()*6.28,d=minD+Math.random()*(320-minD);const x=Math.cos(a)*d,z=Math.sin(a)*d;const y=H(x,z);if(y<0||y>30||slopeAt(x,z)>.6)continue;if(WORLD.sites.some(s=>Math.hypot(x-s.x,z-s.z)<s.r+10))continue;return {x,z};}return {x:150,z:0};}
-export function spawnAnimal(type,at,raid){type=type||pick(['deer','deer','deer','boar','boar','wolf','wolf','bear']);const g=makeAnimal(type);const p=at||forestPoint();g.position.set(p.x,H(p.x,p.z),p.z);scene.add(g);
+export function spawnAnimal(type,at,raid){type=type||pick(['deer','deer','deer','boar','boar','wolf','wolf','bear','unicorn','troll']);const g=makeAnimal(type);const p=at||forestPoint();g.position.set(p.x,H(p.x,p.z),p.z);scene.add(g);
   const a={g,type,home:{x:p.x,z:p.z},tgt:null,t:Math.random()*5,raid,alive:true};W.animals.push(a);return a;}
 export function removeAnimal(a){a.alive=false;scene.remove(a.g);W.animals=W.animals.filter(x=>x!==a);setTimeout(()=>{if(W.animals.length<QS.animals)spawnAnimal();},G.fast?5000:60000);}
 export function beastRaid(b,type,n){const c=cellCenter(b.i,b.j,b.type,b.rot);const a0=Math.atan2(c.z,c.x)+rnd(-.6,.6);
@@ -120,7 +125,7 @@ export function updateAnimals(dt,cam){for(const a of [...W.animals]){const p=a.g
 // ---------- marching armies ----------
 export function march(side,k,power,onArrive){const s=G.s;const from=side==='player'?{x:0,z:14}:{x:k.x,z:k.z},to=side==='player'?{x:k.x,z:k.z}:{x:0,z:0};
   const n=clamp(Math.round(power/4),3,GQ==='low'?6:12);const g=new THREE.Group();const units=[];const kind=side==='player'?'human':k.kind;const c1=side==='player'?s.c1:k.c1,c2=side==='player'?s.c2:k.c2,em=side==='player'?s.emblem:k.emblem;
-  for(let i=0;i<n;i++){const u=makePerson({kind,shirt:new THREE.Color(kind==='human'?c1:kind==='zombie'?'#4a4a3a':'#3a0a0a').getHex(),armor:kind==='human',helmet:kind==='human',weapon:true,cape:kind==='human'?c1:null});u.userData.off={x:(i%4-1.5)*1.6,z:-Math.floor(i/4)*1.8};g.add(u);units.push(u);}
+  for(let i=0;i<n;i++){const u=makePerson({kind,race:side==='player'?'human':k.race,shirt:new THREE.Color(kind==='human'?c1:kind==='zombie'?'#4a4a3a':kind==='orc'?'#3a2a1a':'#3a0a0a').getHex(),armor:kind==='human',helmet:kind==='human'||kind==='orc',weapon:true,cape:kind==='human'?c1:null});u.userData.off={x:(i%4-1.5)*1.6,z:-Math.floor(i/4)*1.8};g.add(u);units.push(u);}
   if(kind==='human'){const b=makeBanner(c1,c2,em,.9);b.position.set(0,1,1.5);g.add(b);}
   if(kind==='demon'){const gl=glow(0xff4a10,10);gl.position.y=2;g.add(gl);}
   scene.add(g);const dist=Math.hypot(to.x-from.x,to.z-from.z);const dur=G.fast?Math.min(14,dist/12):dist/9;
@@ -133,6 +138,22 @@ export function updateArmies(dt){for(const a of [...W.armies]){if(a.state==='mar
       if(Math.random()<dt*10){W.spark.emit(p.x+rnd(-4,4),H(p.x,p.z)+1.5,p.z+rnd(-4,4),{vy:2,life:.4,size:.6,grow:.1,alpha:1,spread:4});W.dust.emit(p.x+rnd(-5,5),H(p.x,p.z)+.5,p.z+rnd(-5,5),{vy:1,life:2,size:2,grow:6,alpha:.35});}
       if(a.clashT<=0){scene.remove(a.g);W.armies=W.armies.filter(x=>x!==a);}}}}
 
+// ---------- mythical flyers: the dragon of Ember Peak and griffins over the mountains ----------
+export function setupFlyers(){W.flyers=[];const mts=WORLD.mountains.slice().sort((a,b)=>b.h-a.h);const lair=mts[0]||{x:200,z:-200,h:60};W.lair={x:lair.x,z:lair.z,h:H(lair.x,lair.z)};
+  const d=makeFlyer('dragon');d.scale.setScalar(1.1);scene.add(d);W.flyers.push({g:d,type:'dragon',cx:lair.x,cz:lair.z,r:70,alt:60,a:0,sp:.12,mode:'patrol'});
+  for(let i=0;i<(GQ==='low'?1:2);i++){const m=mts[1+i]||lair;const f=makeFlyer('griffin');scene.add(f);W.flyers.push({g:f,type:'griffin',cx:m.x,cz:m.z,r:40+i*15,alt:H(m.x,m.z)+18,a:i*3,sp:.25+i*.05,mode:'patrol'});}}
+export function dragonAttack(on){const d=W.flyers&&W.flyers.find(f=>f.type==='dragon');if(!d)return;if(on){d.mode='attack';d.t=0;}else d.mode='return';}
+function updateFlyers(dt){if(!W.flyers)return;for(const f of W.flyers){const p=f.g.position;let tx,tz,ty;
+  if(f.mode==='patrol'){f.a+=dt*f.sp;tx=f.cx+Math.cos(f.a)*f.r;tz=f.cz+Math.sin(f.a)*f.r;ty=Math.max(f.alt,H(tx,tz)+20);}
+  else if(f.mode==='attack'){f.t+=dt;f.a+=dt*.55;tx=Math.cos(f.a)*30;tz=Math.sin(f.a)*30;ty=BASE_Y+22+Math.sin(f.t*.7)*4;
+    if(Math.hypot(p.x,p.z)<60&&W.fire&&Math.random()<dt*25){const fw=new THREE.Vector3(0,0,1).applyQuaternion(f.g.quaternion);const hp=f.g.userData.head.getWorldPosition(new THREE.Vector3());for(let i=0;i<3;i++)W.fire.emit(hp.x+fw.x*2,hp.y-1,hp.z+fw.z*2,{vx:fw.x*14+rnd(-2,2),vy:-9+rnd(-2,2),vz:fw.z*14+rnd(-2,2),life:1.1,size:2.4,grow:2.5,alpha:.9});}}
+  else{tx=f.cx;tz=f.cz;ty=f.alt;if(Math.hypot(p.x-tx,p.z-tz)<f.r)f.mode='patrol';}
+  if(!f.init){p.set(tx,ty,tz);f.init=true;}
+  const dx=tx-p.x,dy=ty-p.y,dz=tz-p.z,dd=Math.hypot(dx,dz);const sp=f.mode==='patrol'?Math.min(dd*2,f.sp*f.r*1.3):30;if(dd>.01){p.x+=dx/dd*Math.min(dd,sp*dt);p.z+=dz/dd*Math.min(dd,sp*dt);}p.y+=dy*Math.min(1,dt*1.5);
+  const yaw=Math.atan2(dx,dz);let dyaw=yaw-f.g.rotation.y;while(dyaw>Math.PI)dyaw-=Math.PI*2;while(dyaw<-Math.PI)dyaw+=Math.PI*2;f.g.rotation.y+=dyaw*Math.min(1,dt*3);f.g.rotation.z=-dyaw*.6;
+  animFlyer(f.g,dt,f.mode==='attack'?1.4:1);}}
+export function refreshPlayerBuildings(){for(const [id,e] of W.bmap){scene.remove(e.g);if(e.scaf)scene.remove(e.scaf);}W.bmap.clear();for(const k of G.s.ai)if(k.vassal)buildAI(k);}
+
 // ---------- immortal heroes near the castle ----------
 export function syncHeroes(){const mine=G.s.immortals.filter(m=>m.mine).slice(-4);while(W.heroes.length>mine.length){scene.remove(W.heroes.pop().g);}
   for(let i=W.heroes.length;i<mine.length;i++){const g=makePerson({shirt:0xd4ac0d,armor:true,helmet:true,weapon:true,skin:0xe0b090});g.traverse(o=>{if(o.isMesh&&o.material===M.metal)o.material=M.gold;});const gl=glow(0xffd060,5);gl.position.y=1.4;g.add(gl);
@@ -142,6 +163,7 @@ export function updateWorld(dt,cam){const t=performance.now()/1000;
       p.position.y=0;animPerson(p,A.k.kind==='zombie'?.7:1.6,dt);}
     if(A.k.kind==='zombie'&&A.k.alive&&W.mist&&Math.random()<dt*3)W.mist.emit(A.k.x+rnd(-40,40),A.k.h+.5,A.k.z+rnd(-40,40),{vy:.2,life:8,size:6,grow:14,alpha:.18,spread:1});
     if(A.k.kind==='demon'&&A.k.alive&&W.fire&&Math.random()<dt*6)W.fire.emit(A.k.x+rnd(-30,30),A.k.h+.3,A.k.z+rnd(-30,30),{vy:3,life:1.2,size:1.4,grow:.2,alpha:.8});}
+  updateFlyers(dt);
   for(const h of W.heroes){h.g.rotation.y=Math.sin(t*.4)*.6;h.gl.material.opacity=.6+Math.sin(t*3)*.3;}
   if(W.smoke)W.smoke.update(dt);if(W.fire)W.fire.update(dt);W.dust.update(dt);W.spark.update(dt);W.mist.update(dt);}
 

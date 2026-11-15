@@ -1,7 +1,7 @@
 // Mythical Rule — HUD, panels, setup screen, scenario cards and the customize UI.
 import {BUILDINGS,BUILD_CATS,JOBS,LAWS,RELIGIONS,STANCES,DECISIONS,EMBLEMS,COLORS,RES,CUSTOM_PRODUCES,CUSTOM_RATE,JOB_ICONS,KINGDOM_NAMES} from './data.js';
 import {G,rates,armyPower,defense,popCap,idle,assigned,slots,setJob,autoAssign,canAfford,costStr,dateStr,MONTH_SEC,law,happyTarget,decide,diplo,attack,built,foodCap,clamp} from './game.js';
-import {PERSONALITIES} from './data.js';
+import {PERSONALITIES,HUMAN_STYLES} from './data.js';
 import {bannerTex} from './gfx.js';
 import {SFX} from './audio.js';
 export const $=id=>document.getElementById(id);
@@ -23,7 +23,7 @@ function renderSetup(){const c=SET.cfg,b=$('sBody');document.querySelectorAll('.
   $('sBack').style.visibility=SET.step?'visible':'hidden';$('sNext').textContent=SET.step===3?'⚔ Begin Your Reign':'Next ▶';
   if(SET.step===0){b.innerHTML=`<div class="lbl">Kingdom name</div><div style="display:flex;gap:6px"><input type="text" id="iName" maxlength="22" value="${esc(c.name)}" style="flex:1"><button class="btn sm dark" id="rName">🎲</button></div>
     <div class="lbl">Your title &amp; name (optional)</div><input type="text" id="iRuler" maxlength="28" placeholder="e.g. King J.J. the Bold" value="${esc(c.ruler)}" style="width:100%">
-    <p style="color:#bba882;font-size:13px;line-height:1.5;margin-top:14px">You will rule a kingdom in a dark realm of rival crowns, the walking dead of the Rotlands and the demons of the Hellmouth. Every month, each kingdom must send three citizens to fight in the Arena. The winner becomes <b style="color:#ffd060">Immortal</b>.</p>`;
+    <p style="color:#bba882;font-size:13px;line-height:1.5;margin-top:14px">You will rule a medieval kingdom in a land of rival crowns, elves and dwarves, orc warbands, the walking dead of the Rotlands, the demons of the Hellmouth, trolls, unicorns and a dragon. Every month, each kingdom must send three citizens to fight in the Arena. The winner becomes <b style="color:#ffd060">Immortal</b>.</p>`;
     $('iName').oninput=e=>c.name=e.target.value;$('iRuler').oninput=e=>c.ruler=e.target.value;$('rName').onclick=()=>{c.name=KINGDOM_NAMES[Math.floor(Math.random()*KINGDOM_NAMES.length)];renderSetup();};}
   else if(SET.step===1){b.innerHTML=`<div class="flexrow"><div style="flex:1;min-width:220px"><div class="lbl">Primary color</div><div id="c1s">${COLORS.map(x=>`<span class="sw ${x===c.c1?'on':''}" data-c="${x}" style="background:${x}"></span>`).join('')}</div>
     <div class="lbl">Secondary color</div><div id="c2s">${COLORS.map(x=>`<span class="sw ${x===c.c2?'on':''}" data-c="${x}" style="background:${x}"></span>`).join('')}</div>
@@ -55,11 +55,11 @@ export function updateHud(){const s=G.s;if(!s)return;const r=rates();
   if(UI.panel&&!$('panel').classList.contains('hidden')&&(UI.panel==='rule'||UI.panel==='arena'))UI.refreshT=(UI.refreshT||0)+1;}
 
 // ---------- panels ----------
-export function openPanel(p){if(UI.panel===p&&!$('panel').classList.contains('hidden')){closePanel();return;}UI.panel=p;$('panel').classList.remove('hidden');document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('on',b.dataset.p===p));renderPanel();SFX.click();}
-export function closePanel(){UI.panel=null;$('panel').classList.add('hidden');document.querySelectorAll('#nav button').forEach(b=>b.classList.remove('on'));}
+export function openPanel(p){if(UI.panel===p&&!$('panel').classList.contains('hidden')){closePanel();return;}if(G.hooks.worldView&&(p==='world')!==(UI.panel==='world'))G.hooks.worldView(p==='world');UI.panel=p;$('panel').classList.remove('hidden');document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('on',b.dataset.p===p));renderPanel();SFX.click();}
+export function closePanel(){if(UI.panel==='world'&&G.hooks.worldView)G.hooks.worldView(false);UI.panel=null;$('panel').classList.add('hidden');document.querySelectorAll('#nav button').forEach(b=>b.classList.remove('on'));}
 export function renderPanel(){const p=UI.panel;if(!p)return;const s=G.s;const B=$('pBody');const sc=B.scrollTop;
-  const T={rule:'👑 Rule the Realm',laws:'📜 Laws of '+s.name,world:'🌍 The Realm',arena:'🏟️ The Arena',log:'📖 Chronicle'};$('pTitle').textContent=T[p];
-  if(p==='rule'){const r=rates();B.innerHTML=`<div class="grid2">
+  const T={rule:'👑 Rule the Realm',laws:'📜 Laws of '+s.name,world:'🗺️ The Realm Map',arena:'🏟️ The Arena',log:'📖 Chronicle'};$('pTitle').textContent=T[p];
+  if(p==='rule'){const r=rates();B.innerHTML=`<button class="btn dark" id="bKEdit" style="width:100%;margin-bottom:8px">🎨 Change name, colors &amp; banner</button><div class="grid2">
       <div class="stat"><small>Population</small><b>👥 ${s.pop} / ${popCap()}</b><small>${idle()} idle · ${assigned()} working</small></div>
       <div class="stat"><small>Happiness</small><b>😊 ${Math.round(s.happy)}%</b><small>heading to ${Math.round(happyTarget())}%</small></div>
       <div class="stat"><small>Food per day</small><b style="color:${r.food<0?'#ff8a7a':'#9fe870'}">🍖 ${r.food>=0?'+':''}${r.food.toFixed(1)}</b><small>${Math.floor(s.res.food)} / ${foodCap()} stored</small></div>
@@ -68,17 +68,17 @@ export function renderPanel(){const p=UI.panel;if(!p)return;const s=G.s;const B=
       <div class="stat"><small>Defense</small><b>🛡️ ${defense()}</b><small>walls, towers &amp; guards</small></div></div>
     ${s.immortals.filter(m=>m.mine).length?`<div class="stat" style="margin-top:6px;border-color:#d8a84a"><small>Your Immortals</small><b>⚜ ${s.immortals.filter(m=>m.mine).map(m=>esc(m.name)).join(', ')}</b><small>+30% army each</small></div>`:''}
     <div class="sec">Royal decisions</div><div class="grid2">${DECISIONS.map(d=>{const cd=Math.max(0,(s.cds[d.id]||0)-s.time);const ok=!cd&&canAfford(d.cost);return `<button class="dec" data-d="${d.id}" ${ok?'':'disabled'}><b>${d.icon} ${d.name}</b><small>${d.desc}</small><em>${cd?'⏳ '+Math.ceil(cd)+'s':costStr(d.cost)}</em></button>`;}).join('')}</div>`;
-    B.querySelectorAll('.dec').forEach(b=>b.onclick=()=>{const m=decide(b.dataset.d);toast(m,'good');SFX.coin();renderPanel();});}
+    $('bKEdit').onclick=()=>G.hooks.editKingdom();B.querySelectorAll('.dec').forEach(b=>b.onclick=()=>{const m=decide(b.dataset.d);toast(m,'good');SFX.coin();renderPanel();});}
   else if(p==='laws'){B.innerHTML=`<div style="font-size:12px;color:#bba882">Your laws shape happiness, production, faith and war. Changes take effect immediately.</div>`+Object.entries(LAWS).map(([id,L])=>{const cur=s.laws[id];const o=L.opts.find(x=>x.id===cur);
       return `<div class="law"><div class="t">${L.icon} ${L.name}</div><div class="seg">${L.opts.map(x=>`<button data-l="${id}" data-o="${x.id}" class="${x.id===cur?'on':''}">${x.name}</button>`).join('')}</div><div class="d">${o.desc}</div></div>`;}).join('');
     B.querySelectorAll('.seg button').forEach(b=>b.onclick=()=>{s.laws[b.dataset.l]=b.dataset.o;SFX.click();toast(`New law: ${LAWS[b.dataset.l].name} → ${b.textContent}`);renderPanel();});}
   else if(p==='world'){const my=armyPower();B.innerHTML=`<div style="font-size:12px;color:#bba882">Your army ⚔️ ${my} · defense 🛡️ ${defense()}${s.marching?' · <b style="color:#ffd060">army marching…</b>':''}</div>`+s.ai.map(k=>{
       const st=!k.alive?'dead':k.vassal?'vassal':k.status;const stn={war:'AT WAR',peace:'Peace',ally:'Ally',vassal:'Vassal',dead:'Fallen',truce:'Truce'}[st];const relw=Math.abs(k.rel)/2;
-      const typ=k.kind==='human'?`${PERSONALITIES[k.pers].name} · ${RELIGIONS[k.relig]?.name||''}`:k.kind==='zombie'?'Undead horde':'Demon realm';
+      const typ=k.kind==='human'?`${k.race==='elf'?'🧝 Elves':k.race==='dwarf'?'⛏️ Dwarves':HUMAN_STYLES[k.style]||'Humans'} · ${PERSONALITIES[k.pers].name}`:k.kind==='zombie'?'🧟 Undead horde':k.kind==='orc'?'👹 Orc warband':'😈 Demon realm';
       let acts='';if(k.alive&&!k.vassal){if(k.kind==='human'){acts+=`<button data-a="gift">🎁 Gift 50🪙</button>`;acts+=k.trade?`<button data-a="endtrade">End trade</button>`:`<button data-a="trade">⚖️ Trade</button>`;
           if(k.status!=='ally'&&k.status!=='war')acts+=`<button class="grn" data-a="ally">🤝 Alliance</button>`;if(k.status!=='war')acts+=`<button class="red" data-a="war">⚔️ Declare war</button>`;else acts+=`<button data-a="peace">🕊️ Offer peace</button>`;
           if(k.status!=='ally')acts+=`<button data-a="tribute">💰 Demand tribute</button>`;}
-        else acts+=`<button data-a="truce">${k.kind==='demon'?'🩸 Offer sacrifice (✨40 🪙60)':'🕯️ Ward the dead (✨40 🪙60)'}</button>`;
+        else acts+=`<button data-a="truce">${k.kind==='demon'?'🩸 Offer sacrifice (✨40 🪙60)':k.kind==='orc'?'🍖 Pay the warlord (✨40 🪙60)':'🕯️ Ward the dead (✨40 🪙60)'}</button>`;
         if(k.status==='war')acts+=`<button class="red" data-a="atk" data-f=".5">⚔️ Attack (half army)</button><button class="red" data-a="atk" data-f="1">⚔️ All-out attack</button>`;}
       acts+=`<button data-a="fly">📍 Show</button>`;
       return `<div class="king ${UI.hlKing===k.id?'hl':''}" data-k="${k.id}"><div class="h"><div class="em2" style="background:${k.c1}">${k.emblem}</div><div class="n"><b>${esc(k.name)}</b><small>${esc(k.ruler)} · ${typ}</small></div><span class="st ${st}">${stn}</span></div>
@@ -128,5 +128,22 @@ function renderCust_(s,B){document.querySelectorAll('#custBar .tabs button').for
     $('njMake').onclick=()=>{const name=(nj.name||'').trim();if(!name){toast('Give the job a name first.','bad');return;}const id='c'+Date.now().toString(36);s.customJobs.push({id,name:name.slice(0,20),icon:nj.icon,prod:nj.prod,count:0});setJob(id,Math.min(2,idle()));SFX.good();toast(`New job created: ${nj.icon} ${name}`,'good');UI.nj=null;UI.ctab='jobs';renderCust();};}}
 
 // ---------- modal ----------
+// edit the kingdom's name, ruler, colors, banner pattern and emblem at any time
+export function openKingdomEdit(onSave){const s=G.s;const c={name:s.name,ruler:s.ruler||'',c1:s.c1,c2:s.c2,emblem:s.emblem,bstyle:s.bstyle||0};
+  const draw=()=>{modal(`<h2>🎨 Your Kingdom</h2><div class="lbl">Kingdom name</div><div style="display:flex;gap:6px"><input type="text" id="kN" maxlength="22" value="${esc(c.name)}" style="flex:1"><button class="btn sm dark" id="kR">🎲</button></div>
+    <div class="lbl">Ruler</div><input type="text" id="kRu" maxlength="28" placeholder="e.g. King J.J. the Bold" value="${esc(c.ruler)}" style="width:100%">
+    <div class="flexrow"><div style="flex:1;min-width:200px"><div class="lbl">Primary color</div><div id="k1">${COLORS.map(x=>`<span class="sw ${x===c.c1?'on':''}" data-c="${x}" style="background:${x}"></span>`).join('')}</div>
+    <div class="lbl">Secondary color</div><div id="k2">${COLORS.map(x=>`<span class="sw ${x===c.c2?'on':''}" data-c="${x}" style="background:${x}"></span>`).join('')}</div>
+    <div class="lbl">Banner pattern</div><div class="seg" id="kb">${['Bands','Halves','Diagonal'].map((n,i)=>`<button class="${i===c.bstyle?'on':''}" data-i="${i}">${n}</button>`).join('')}</div></div>
+    <div style="text-align:center"><div class="lbl">Banner</div><canvas id="kPrev" width="96" height="192"></canvas></div></div>
+    <div class="lbl">Emblem</div><div>${EMBLEMS.map(e=>`<span class="em ${e===c.emblem?'on':''}" data-e="${e}">${e}</span>`).join('')}</div>
+    <div style="display:flex;gap:8px;margin-top:14px"><button class="btn dark" id="kX" style="flex:1">Cancel</button><button class="btn gold" id="kOk" style="flex:2">👑 Proclaim</button></div>`,card=>{
+      const keep=()=>{c.name=$('kN').value;c.ruler=$('kRu').value;};drawBanner($('kPrev'),c.c1,c.c2,c.emblem,c.bstyle);
+      $('kR').onclick=()=>{keep();c.name=KINGDOM_NAMES[Math.floor(Math.random()*KINGDOM_NAMES.length)];draw();};
+      card.querySelectorAll('#k1 .sw').forEach(x=>x.onclick=()=>{keep();c.c1=x.dataset.c;draw();});card.querySelectorAll('#k2 .sw').forEach(x=>x.onclick=()=>{keep();c.c2=x.dataset.c;draw();});
+      card.querySelectorAll('#kb button').forEach(x=>x.onclick=()=>{keep();c.bstyle=+x.dataset.i;draw();});card.querySelectorAll('.em').forEach(x=>x.onclick=()=>{keep();c.emblem=x.dataset.e;draw();});
+      $('kX').onclick=()=>closeModal();
+      $('kOk').onclick=()=>{keep();const nm=c.name.trim()||s.name;const changed=nm!==s.name;Object.assign(s,{name:nm,ruler:c.ruler.trim(),c1:c.c1,c2:c.c2,emblem:c.emblem,bstyle:c.bstyle});closeModal();initHud();SFX.good&&SFX.good();if(changed)G.hooks.log&&0;onSave&&onSave(changed);};});};
+  draw();}
 export function modal(html,onBind){G.modal=true;$('modal').classList.remove('hidden');$('mCard').innerHTML=html;$('mCard').scrollTop=0;if(onBind)onBind($('mCard'));}
 export function closeModal(){G.modal=false;$('modal').classList.add('hidden');}

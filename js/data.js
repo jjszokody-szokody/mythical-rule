@@ -141,3 +141,9 @@ export const PERSONALITIES = {
 export const FIRST = ['Aldo','Bryn','Cora','Dain','Edda','Finn','Gwen','Hale','Ivo','Jora','Kael','Lira','Mara','Nils','Oren','Pell','Quinn','Rhea','Soren','Tamsin','Ulric','Vera','Wyn','Yara','Zane','Brom','Elsa','Torin','Nessa','Rook','Arlo','Kira','Ash','Fen','Ilse','Joss','Mira','Tobin','Wren','Hugo'];
 export const ZOMBIE_NAMES = ['Grul the Rotten','Mother Moss','Hollow Jack','The Pale Knight','Sallow Ann','Bonechewer','Old Fester','The Weeping Bride','Gravel-Tooth'];
 export const DEMON_NAMES = ['Azkaroth','Vexira','Malgor','Shrike','Bael-Ka','Nyxa','Ignar','Skorn','Velith'];
+export const ORC_NAMES = ['Ugluk Skullsplitter','Grishna the Cruel','Mogdush Bonegnaw','Azgar Ironjaw','Lurtz Bloodtusk'];
+export const MYTHIC = {
+  elf:{names:['Silverwood','Lothien Vale','Starfall Glade'],rulers:['Queen Aerin Starbloom','Lord Celeborn','Lady Ithilwen','King Thalion'],c1:'#145a32',c2:'#f1e7c8',emblem:'🌿',pers:'cautious',desc:'Elven realm'},
+  dwarf:{names:['Ironhold Deep','Khazrak','Stonebeard Hall'],rulers:['King Thrain Stonefist','Queen Dagna Goldvein','Lord Borin Oakenshield','King Durin the Deep'],c1:'#6e2c00',c2:'#d4ac0d',emblem:'⚒️',pers:'greedy',desc:'Dwarven kingdom'},
+};
+export const HUMAN_STYLES = {stone:'Stone kingdom',timber:'Northmen of the timber halls',sand:'Desert sultanate'};

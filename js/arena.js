@@ -48,10 +48,10 @@ export function startArena(tributes,mode,onEnd){if(!A.built)build();A.active=tru
   const ks=[...new Set(tributes.map(t=>t.kid))];
   ks.forEach((kid,i)=>{const t=tributes.find(x=>x.kid===kid);for(let j=0;j<2;j++){const a=(i+j*ks.length)/(ks.length*2)*Math.PI*2;const b=makeBanner(t.c1,t.c2,t.emblem,1.6);b.position.set(Math.cos(a)*(R0+2.6),5.5,Math.sin(a)*(R0+2.6));b.rotation.y=-a-Math.PI/2;A.bannerG.add(b);}});
   const n=tributes.length;tributes.forEach((t,i)=>{const a=i/n*Math.PI*2;const kind=t.kind;
-    const g=makePerson({kind,shirt:new THREE.Color(t.c1).getHex(),pants:new THREE.Color(t.c2).getHex(),skin:[0xe8c0a0,0xd8a880,0xb08060,0x8a5a3a][i%4],hair:[0x2a1a10,0x8a6a3a,0x1a1a1a,0xc8a060][i%4],weapon:false,cape:kind==='human'?t.c1:null,armor:t.mine&&t.isPlayer});
+    const g=makePerson({kind,race:t.race,shirt:new THREE.Color(t.c1).getHex(),pants:new THREE.Color(t.c2).getHex(),skin:[0xe8c0a0,0xd8a880,0xb08060,0x8a5a3a][i%4],hair:[0x2a1a10,0x8a6a3a,0x1a1a1a,0xc8a060][i%4],weapon:false,cape:kind==='human'?t.c1:null,armor:t.mine&&t.isPlayer});
     const ring=new THREE.Mesh(new THREE.RingGeometry(.55,.75,20),new THREE.MeshBasicMaterial({color:t.c1,transparent:true,opacity:.85}));ring.rotation.x=-Math.PI/2;ring.position.y=.05;g.add(ring);
     g.position.set(Math.cos(a)*22,0,Math.sin(a)*22);g.rotation.y=Math.atan2(-g.position.x,-g.position.z);scene.add(g);
-    const kmul=kind==='zombie'?{hp:1.25,sp:.75,dm:1.1}:kind==='demon'?{hp:1,sp:1.1,dm:1.15}:{hp:1,sp:1,dm:1};
+    const kmul=kind==='zombie'?{hp:1.25,sp:.75,dm:1.1}:kind==='demon'?{hp:1,sp:1.1,dm:1.15}:kind==='orc'?{hp:1.2,sp:.95,dm:1.15}:t.race==='elf'?{hp:.9,sp:1.15,dm:1.05}:t.race==='dwarf'?{hp:1.3,sp:.85,dm:1.05}:{hp:1,sp:1,dm:1};
     const hp=(70+t.grit*7)*kmul.hp;A.fighters.push({g,t,kid:t.kid,name:t.name,kname:t.kname,hp,max:hp,str:t.str,agi:t.agi,grit:t.grit,sp:(3.4+t.agi*.22)*kmul.sp,dm:kmul.dm,isPlayer:t.isPlayer,alive:true,cd:rnd(0,.5),atk:0,dodge:0,kills:0,weapon:null,tgt:null,fleeT:0,think:0,deadT:0,mine:t.mine,kind});});
   for(let i=0;i<7;i++){const w=pick(WEAP);const a=i/7*Math.PI*2;const mesh=new THREE.Mesh(new THREE.BoxGeometry(.12,1.1,.2),M.metal);mesh.position.set(Math.cos(a)*4.5,.6,Math.sin(a)*4.5+1);mesh.rotation.z=1.2;scene.add(mesh);A.pickups.push({w,mesh});}
   setMode('arena');SFX.gong();buildHud();}
