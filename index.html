@@ -15,7 +15,7 @@ h2,.logo{font-family:Copperplate,"Copperplate Gothic Light","Iowan Old Style",Pa
 .screen{position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:max(16px,env(safe-area-inset-top)) 16px max(16px,env(safe-area-inset-bottom));text-align:center;overflow:auto}
 #title{background:radial-gradient(ellipse at 50% 30%,rgba(40,22,8,.35),rgba(5,4,3,.9) 75%),url(title.jpg) center/cover no-repeat #0a0806}
 .logo{font-size:clamp(48px,13vw,104px);line-height:.9;letter-spacing:.08em;color:#f0d79a;text-shadow:0 0 30px rgba(255,140,40,.45),0 4px 0 #4a2a0a,0 10px 30px #000;font-weight:700}
-.logo small{display:block;font-size:.22em;letter-spacing:.5em;color:#c9a35a;margin-top:10px;text-shadow:0 2px 6px #000}
+.logo small{display:block;font-size:max(11px,.2em);letter-spacing:.32em;white-space:nowrap;color:#c9a35a;margin-top:10px;text-shadow:0 2px 6px #000}
 .sub{margin:14px 0 22px;color:#d8c49a;font-style:italic;font-size:clamp(14px,3.6vw,18px);text-shadow:0 2px 6px #000}
 .btn{font-family:inherit;background:linear-gradient(#8a2a1a,#5a160c);color:#ffe9b8;border:1px solid #d8a84a;border-radius:10px;padding:12px 26px;font-size:17px;font-weight:700;margin:6px;cursor:pointer;box-shadow:0 3px 0 #2a0a04,0 6px 16px rgba(0,0,0,.5);letter-spacing:.03em;min-width:200px}
 .btn.gold{background:linear-gradient(#e8c060,#a8781a);color:#2a1604;border-color:#ffe39a}
@@ -84,7 +84,7 @@ select,input[type=text]{font:inherit;background:#1a140e;color:#f3e6c8;border:1px
 .toast{background:rgba(15,11,8,.92);border:1px solid #b8954a;border-radius:10px;padding:7px 12px;font-size:13px;text-align:center;transition:opacity .5s,transform .5s;box-shadow:0 4px 14px #000}.toast.bad{border-color:#d84a2a}.toast.good{border-color:#5aa04a}.toast.big{font-size:15px;padding:10px 14px}
 #labels{position:absolute;inset:0;overflow:hidden}
 .klab{position:absolute;left:0;top:0;pointer-events:auto;cursor:pointer;background:rgba(15,11,8,.82);border:1px solid #7a6440;border-radius:10px;padding:3px 8px;font-size:12px;font-weight:700;white-space:nowrap;display:flex;align-items:center;gap:4px}
-.klab small{font-weight:600;color:#c8b48a;font-size:10px;display:none}.worldmode .klab{font-size:14px;padding:5px 10px}.worldmode .klab small{display:inline}.klab.me{border-color:#ffd060;color:#ffe9a8;background:rgba(40,28,6,.88)}
+.klab small{font-weight:600;color:#c8b48a;font-size:10px;display:none}.worldmode .klab{font-size:13px;padding:4px 9px}@media (min-width:600px){.worldmode .klab{font-size:14px}.worldmode .klab small{display:inline}}.klab.me{border-color:#ffd060;color:#ffe9a8;background:rgba(40,28,6,.88)}
 .worldmode #panel{max-height:40vh}@media (min-aspect-ratio:1/1) and (min-width:600px){.worldmode #panel{width:340px}}#topL{cursor:pointer}
 .klab.war{border-color:#ff5a3a;color:#ffc0b0}.klab.ally{border-color:#7ad86a}.klab.vassal{border-color:#ffd060}
 .flt{position:absolute;left:0;top:0;font-weight:900;font-size:15px;color:#9fe870;text-shadow:0 2px 3px #000;pointer-events:none;transition:transform 1.4s ease-out,opacity 1.4s}

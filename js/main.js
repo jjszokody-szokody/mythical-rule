@@ -48,8 +48,8 @@ G.hooks.fx=(n,d)=>{if(n==='beasts'&&d.b)beastRaid(d.b,d.type,d.n);if(n==='horde'
 G.hooks.flyTo=(x,z)=>{worldSaved=null;cam.tx=x;cam.tz=z;cam.tdist=110;if(isPortrait())closePanel();};
 // 3D realm map: the World tab flies the camera high over the whole land so every kingdom is visible in 3D
 let worldSaved=null;
-G.hooks.worldView=on=>{document.body.classList.toggle('worldmode',!!on);if(on){if(!worldSaved)worldSaved={tx:cam.tx,tz:cam.tz,tdist:cam.tdist};const p=isPortrait();const off=p?110:0;cam.tx=Math.sin(cam.yaw)*off;cam.tz=Math.cos(cam.yaw)*off;cam.tdist=p?560:430;}
-  else if(worldSaved){cam.tx=worldSaved.tx;cam.tz=worldSaved.tz;cam.tdist=worldSaved.tdist;worldSaved=null;}updateLabels(true);};
+G.hooks.worldView=on=>{document.body.classList.toggle('worldmode',!!on);if(on){if(!worldSaved)worldSaved={tx:cam.tx,tz:cam.tz,tdist:cam.tdist};const p=isPortrait();camera.fov=p?70:50;camera.updateProjectionMatrix();const hf=Math.atan(Math.tan(camera.fov*Math.PI/360)*innerWidth/innerHeight);const off=p?150:0,side=p?0:-Math.min(120,190*380/innerWidth);cam.tx=Math.sin(cam.yaw)*off+Math.cos(cam.yaw)*side;cam.tz=Math.cos(cam.yaw)*off-Math.sin(cam.yaw)*side;cam.tdist=p?Math.min(1000,300/Math.tan(hf)):430;}
+  else{camera.fov=50;camera.updateProjectionMatrix();}if(!on&&worldSaved){cam.tx=worldSaved.tx;cam.tz=worldSaved.tz;cam.tdist=worldSaved.tdist;worldSaved=null;}updateLabels(true);};
 G.hooks.editKingdom=()=>openKingdomEdit(changed=>{log(changed?`By royal decree the kingdom is now known as ${G.s.name}.`:`${G.s.name} raises new banners.`,'good');refreshPlayerBuildings();buildLabels();toast(`👑 Long live ${G.s.name}!`,'good');if(UI.panel)renderPanel();save();});
 G.hooks.startArena=()=>{closePanel();arenaIntro();};
 G.hooks.selectTool=t=>selectTool(t);
@@ -73,7 +73,7 @@ function updateCamera(dt){const k=1-Math.pow(.0005,dt);cam.x+=(cam.tx-cam.x)*k;c
   camera.position.set(cam.x+Math.sin(cam.yaw)*Math.cos(pitch)*cam.dist,gy+Math.sin(pitch)*cam.dist,cam.z+Math.cos(cam.yaw)*Math.cos(pitch)*cam.dist);
   const ch=H(camera.position.x,camera.position.z)+4;if(camera.position.y<ch)camera.position.y=ch;camera.lookAt(cam.x,gy+1,cam.z);}
 function pan(dx,dy){const s=cam.dist*.0022;const cy=Math.cos(cam.yaw),sy=Math.sin(cam.yaw);cam.tx+=(-dx*cy-dy*sy)*s;cam.tz+=(dx*sy-dy*cy)*s;const r=Math.hypot(cam.tx,cam.tz);if(r>340){cam.tx*=340/r;cam.tz*=340/r;}}
-function zoom(f){cam.tdist=clamp(cam.tdist*f,18,document.body.classList.contains('worldmode')?620:320);}
+function zoom(f){cam.tdist=clamp(cam.tdist*f,18,document.body.classList.contains('worldmode')?1400:320);}
 
 // ---------- input ----------
 const ptrs=new Map();let gesture=null,mouseBtn=0;
@@ -188,7 +188,7 @@ $('bHelp').onclick=()=>{SFX.click();modal(`<h2>📖 How to Rule</h2><p style="fo
 <b>👑 Rule:</b> royal decisions like festivals, hunts and levies. <b>📜 Laws:</b> taxes, rations, work hours, conscription, curfew, religion and more, each with trade-offs.<br>
 <b>🌍 World:</b> rival kingdoms (each with its own personality), the zombie Rotlands and the demon Hellmouth. Gift, trade, ally, demand tribute, declare war and send your army. Beaten kingdoms become your vassals.<br>
 <b>Scenarios:</b> every 2–5 minutes something happens: wolves, plague, hordes, fires, rebels. Choose wisely.<br>
-<b>🏟️ The Arena:</b> every month (3 minutes) each kingdom sends 3 tributes. Fight as your champion (joystick + ⚔️ attack + 💨 dodge, or WASD + Space + Shift) or watch. The last kingdom standing wins and its champion becomes <b style="color:#ffd060">Immortal</b>: +30% army strength forever.<br>
+<b>🗺️ World:</b> opens the 3D realm map: elves, dwarves, human kingdoms, orcs, the undead and demons. Watch for the dragon, griffins, trolls and unicorns. <b>🎨</b> changes your kingdom's name and colors.<br><b>🏟️ The Arena:</b> every month (10 minutes) each kingdom sends 3 tributes. Fight as your champion (joystick + ⚔️ attack + 💨 dodge, or WASD + Space + Shift) or watch. The last kingdom standing wins and its champion becomes <b style="color:#ffd060">Immortal</b>: +30% army strength forever.<br>
 <b>Tap</b> an animal to hunt it, a building for info and repairs, a kingdom's name for diplomacy.</p><button class="btn gold" id="hClose" style="width:100%">Got it</button>`,c=>{$('hClose').onclick=closeModal;});};
 
 // ---------- tutorial ----------
@@ -200,7 +200,7 @@ const TUT=[
  {t:()=>`🏗️ Pick a building from the bar (try a <b>House</b> or a <b>Farm</b>), tap an empty spot on the grid, then tap <b>✓ Place</b>. Builders will raise it.`,wait:true},
  {t:()=>`👷 The <b>Jobs</b> tab lets you move citizens between jobs, and <b>New Job</b> lets you invent your own. Tap <b>✓ Done</b>, then open <b>📜 Laws</b> or <b>👑 Rule</b> at the bottom.`,hl:'nav',wait:true},
  {t:()=>`🌍 <b>World</b> lists the other kingdoms: make alliances, trade or declare war. Beware the zombie <b>Rotlands</b> and the demon <b>Hellmouth</b>.`},
- {t:()=>`⚔ Every month (3 minutes) the <b>Arena Games</b> are held. The countdown is in the top left. The winner's champion becomes <b>Immortal</b>.`,hl:'kArena'},
+ {t:()=>`⚔ Every month (10 minutes) the <b>Arena Games</b> are held. The countdown is in the top left. The winner's champion becomes <b>Immortal</b>.`,hl:'kArena'},
  {t:()=>`📜 Every few minutes a <b>scenario</b> will test your rule, each with several choices. Long live ${G.s.name}!`},
 ];
 function tutorial(i){document.querySelectorAll('.hl-el').forEach(e=>e.classList.remove('hl-el'));G.s.tut=i;const el=$('tip');if(i>=TUT.length){el.classList.add('hidden');G.s.tut=99;save();return;}
@@ -264,7 +264,7 @@ function loop(now){requestAnimationFrame(loop);let dt=Math.min(.1,(now-last)/100
   const paused=G.modal;const calm=G.debug&&location.search.includes('calm');if(!paused){tick(dt);if(calm){s.nextEvent=s.time+999;s.monthStart=Math.max(s.monthStart,s.time-MONTH_SEC()+60);}
     if(s.time>=s.nextEvent){const [a,b]=EVENT_GAP();s.nextEvent=s.time+rnd(a,b);if(!A.active)runEvent(pickEvent());}
     if(s.time-s.monthStart>=MONTH_SEC()&&!G.modal){arenaIntro();}}
-  updateCamera(dt);const dl=setDayTime(((s.time/(RATE_SEC()*2))+.08)%1,new THREE.Vector3(cam.x,0,cam.z));scene.fog.density*=clamp(120/cam.dist,.3,1);
+  updateCamera(dt);const dl=setDayTime(((s.time/(RATE_SEC()*2))+.08)%1,new THREE.Vector3(cam.x,0,cam.z));scene.fog.density*=clamp(120/cam.dist,.08,1);
   syncBuildings(dt);updateWalkers(dt);updateAnimals(dt,cam);updateArmies(paused?0:dt);updateWorld(dt,cam);
   hudT+=dt;if(hudT>.25){hudT=0;updateHud();updateLabels(false);if(custOn&&(selB||moving))actRow();}
   panelT+=dt;if(panelT>2){panelT=0;if(UI.panel==='rule'||UI.panel==='arena')renderPanel();if(custOn&&UI.ctab==='build')renderCust();updateLabels(true);}

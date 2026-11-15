@@ -45,7 +45,7 @@ export function initRenderer(canvas){
   renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=.9;
   if(QS.shadow){renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;}
   scene=new THREE.Scene();scene.fog=new THREE.FogExp2(0x9aa7a8,.0032);scene.background=new THREE.Color(0x9aa7a8);
-  camera=new THREE.PerspectiveCamera(50,innerWidth/innerHeight,.5,1600);
+  camera=new THREE.PerspectiveCamera(50,innerWidth/innerHeight,.5,3200);
   hemi=new THREE.HemisphereLight(0xc8d8ff,0x3a3020,.55);scene.add(hemi);
   sun=new THREE.DirectionalLight(0xfff0d8,2.2);sun.position.set(80,120,40);scene.add(sun);scene.add(sun.target);
   if(QS.shadow){sun.castShadow=true;sun.shadow.mapSize.set(QS.shadow,QS.shadow);const c=sun.shadow.camera;c.left=-90;c.right=90;c.top=90;c.bottom=-90;c.near=10;c.far=500;sun.shadow.bias=-.0006;sun.shadow.normalBias=.4;}
@@ -144,6 +144,7 @@ export function makeBanner(c1,c2,emblem,scale=1,style=0){const g=new THREE.Group
 // ---------- terrain ----------
 export let terrain, waterMeshes=[];
 export function buildTerrain(){
+  {const og=new THREE.PlaneGeometry(9000,9000).rotateX(-Math.PI/2);const om=new THREE.MeshStandardMaterial({color:0x3e5228,roughness:1});const o=new THREE.Mesh(og,om);o.position.y=-10;scene.add(o);}
   const S=WORLD.R*2+80,seg=QS.seg;const geo=new THREE.PlaneGeometry(S,S,seg,seg);geo.rotateX(-Math.PI/2);
   const pos=geo.attributes.position,n=pos.count;const sw=new Float32Array(n*4),col=new Float32Array(n*3);const c=new THREE.Color();
   for(let i=0;i<n;i++){const x=pos.getX(i),z=pos.getZ(i);const y=H(x,z);pos.setY(i,y);
@@ -221,13 +222,13 @@ export function buildForests(avoid){
   rm.count=ri;rm.castShadow=!!QS.shadow;rm.receiveShadow=!!QS.shadow;rm.frustumCulled=false;scene.add(rm);
 }
 export function buildGrass(){if(GQ==='low')return;const cv=document.createElement('canvas');cv.width=64;cv.height=64;const x=cv.getContext('2d');
-  for(let i=0;i<26;i++){const bx=6+Math.random()*52,h=30+Math.random()*32,lean=(Math.random()-.5)*14;const g=x.createLinearGradient(0,64,0,64-h);g.addColorStop(0,'#2a4a14');g.addColorStop(1,Math.random()<.5?'#8aac3a':'#6a9a2a');x.strokeStyle=g;x.lineWidth=2+Math.random()*2;x.beginPath();x.moveTo(bx,64);x.quadraticCurveTo(bx+lean*.3,64-h*.6,bx+lean,64-h);x.stroke();}
-  const t=new THREE.CanvasTexture(cv);t.colorSpace=THREE.SRGBColorSpace;const a=new THREE.PlaneGeometry(1.4,.9);a.translate(0,.45,0);const b=a.clone().rotateY(Math.PI/2);const geo=mergeGeometries([a,b]);
-  const m=new THREE.MeshStandardMaterial({map:t,alphaTest:.4,side:THREE.DoubleSide,roughness:1});m.onBeforeCompile=sh=>{sh.uniforms.uTime=uTime;sh.vertexShader=sh.vertexShader.replace('#include <common>','#include <common>\nuniform float uTime;').replace('#include <begin_vertex>','#include <begin_vertex>\nvec4 ip=instanceMatrix[3];transformed.x+=sin(uTime*2.+ip.x*.4+ip.z*.3)*.12*position.y;');};
+  for(let i=0;i<26;i++){const bx=6+Math.random()*52,h=30+Math.random()*32,lean=(Math.random()-.5)*14;const g=x.createLinearGradient(0,64,0,64-h);g.addColorStop(0,'#3e5c1e');g.addColorStop(1,Math.random()<.5?'#94b448':'#7aa23a');x.strokeStyle=g;x.lineWidth=2+Math.random()*2;x.beginPath();x.moveTo(bx,64);x.quadraticCurveTo(bx+lean*.3,64-h*.6,bx+lean,64-h);x.stroke();}
+  const t=new THREE.CanvasTexture(cv);t.colorSpace=THREE.SRGBColorSpace;t.generateMipmaps=false;t.minFilter=THREE.LinearFilter;const a=new THREE.PlaneGeometry(1.4,.9);a.translate(0,.45,0);const b=a.clone().rotateY(Math.PI/2);const geo=mergeGeometries([a,b]);{const n=geo.attributes.normal;for(let i=0;i<n.count;i++)n.setXYZ(i,0,1,0);}
+  const m=new THREE.MeshStandardMaterial({map:t,alphaTest:.5,side:THREE.DoubleSide,roughness:1});m.onBeforeCompile=sh=>{sh.uniforms.uTime=uTime;sh.vertexShader=sh.vertexShader.replace('#include <common>','#include <common>\nuniform float uTime;').replace('#include <begin_vertex>','#include <begin_vertex>\nvec4 ip=instanceMatrix[3];transformed.x+=sin(uTime*2.+ip.x*.4+ip.z*.3)*.12*position.y;');};
   const N=GQ==='high'?9000:4500;const im=new THREE.InstancedMesh(geo,m,N);const r=rng(77);const mtx=new THREE.Matrix4(),q=new THREE.Quaternion(),c=new THREE.Color();let n=0;
   for(let t2=0;t2<N*4&&n<N;t2++){const x2=(r()-.5)*360,z2=(r()-.5)*360;if(Math.abs(x2)<64&&Math.abs(z2)<64)continue;const y=H(x2,z2);if(y<-.5||y>24||slopeAt(x2,z2)>.6)continue;if(WORLD.sites.some(s=>s.kind!=='player'&&Math.hypot(x2-s.x,z2-s.z)<s.r+4))continue;
     if(WORLD.roads.some(rd=>segDist(x2,z2,rd[0],rd[1],rd[2],rd[3])<4))continue;if(fbm(x2*.05,z2*.05)<.42)continue;const s=.7+r()*.9;q.setFromAxisAngle(new THREE.Vector3(0,1,0),r()*3);mtx.compose(new THREE.Vector3(x2,y-.05,z2),q,new THREE.Vector3(s,s*(.7+r()*.6),s));im.setMatrixAt(n,mtx);c.setHSL(.22+r()*.06,.4,.45+r()*.2);im.setColorAt(n,c);n++;}
-  im.count=n;im.frustumCulled=false;im.receiveShadow=GQ==='high';scene.add(im);}
+  im.count=n;im.frustumCulled=false;scene.add(im);}
 export function removeTree(td){if(!td.alive)return;td.alive=false;const m=new THREE.Matrix4().makeScale(0,0,0);td.mesh.setMatrixAt(td.inst,m);td.mesh.instanceMatrix.needsUpdate=true;if(td.fmesh){td.fmesh.setMatrixAt(td.inst,m);td.fmesh.instanceMatrix.needsUpdate=true;}}
 
 // ---------- sky / day-night ----------
@@ -434,7 +435,7 @@ aGeo.leg.translate(0,-.5,0);
 export const ANIMALS={deer:{name:'Deer',icon:'🦌',col:0x8a5a32,size:1,food:30,danger:0,speed:4},wolf:{name:'Wolf',icon:'🐺',col:0x6a6460,size:.85,food:12,danger:2,speed:5},
   boar:{name:'Boar',icon:'🐗',col:0x4a3426,size:.8,food:25,danger:1,speed:3.5},bear:{name:'Bear',icon:'🐻',col:0x3a2616,size:1.5,food:45,danger:3,speed:3},
   unicorn:{name:'Unicorn',icon:'🦄',col:0xf4f0ff,size:1.1,food:0,faith:40,danger:0,speed:5,myth:true},troll:{name:'Forest Troll',icon:'👹',col:0x6a7a6a,size:2.4,food:0,gold:60,danger:5,speed:2.6,myth:true}};
-function makeTroll(){const p=makePerson({kind:'orc',skin:0x6a7a6a,shirt:0x4a3a2a,pants:0x3a2a1a});p.traverse(m=>{if(m.isMesh&&m.material.color&&m.material.color.getHex()===0x5f7a38)m.material=colMat(0x7a8a7a,{roughness:.9});});
+function makeTroll(){const p=makePerson({kind:'orc',skin:0x6a7a6a,shirt:0x8a7450,pants:0x5a4a32});p.traverse(m=>{if(m.isMesh&&m.material.color&&m.material.color.getHex()===0x5f7a38)m.material=colMat(0xa0a890,{roughness:.9});});
   const club=new THREE.Mesh(new THREE.CylinderGeometry(.16,.07,1.4,6),M.darkbark);club.position.set(0,-.8,.3);club.rotation.x=Math.PI/2;p.userData.armR.add(club);p.scale.set(2.6,2.3,2.6);
   const u=p.userData;return {g:p,legs:[u.legL,u.armR,u.armL,u.legR]};}
 export function makeAnimal(type){const A=ANIMALS[type];if(type==='troll'){const t=makeTroll();const g=new THREE.Group();g.add(t.g);g.userData={legs:t.legs,phase:0,type,biped:true};return g;}const g=new THREE.Group();const m=colMat(A.col,{roughness:.95});const dark=colMat(0x1a1410);

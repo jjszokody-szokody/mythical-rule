@@ -140,7 +140,7 @@ export function updateArmies(dt){for(const a of [...W.armies]){if(a.state==='mar
 
 // ---------- mythical flyers: the dragon of Ember Peak and griffins over the mountains ----------
 export function setupFlyers(){W.flyers=[];const mts=WORLD.mountains.slice().sort((a,b)=>b.h-a.h);const lair=mts[0]||{x:200,z:-200,h:60};W.lair={x:lair.x,z:lair.z,h:H(lair.x,lair.z)};
-  const d=makeFlyer('dragon');d.scale.setScalar(1.1);scene.add(d);W.flyers.push({g:d,type:'dragon',cx:lair.x,cz:lair.z,r:70,alt:60,a:0,sp:.12,mode:'patrol'});
+  const d=makeFlyer('dragon');d.scale.setScalar(1.7);scene.add(d);W.flyers.push({g:d,type:'dragon',cx:lair.x,cz:lair.z,r:70,alt:60,a:0,sp:.12,mode:'patrol'});
   for(let i=0;i<(GQ==='low'?1:2);i++){const m=mts[1+i]||lair;const f=makeFlyer('griffin');scene.add(f);W.flyers.push({g:f,type:'griffin',cx:m.x,cz:m.z,r:40+i*15,alt:H(m.x,m.z)+18,a:i*3,sp:.25+i*.05,mode:'patrol'});}}
 export function dragonAttack(on){const d=W.flyers&&W.flyers.find(f=>f.type==='dragon');if(!d)return;if(on){d.mode='attack';d.t=0;}else d.mode='return';}
 function updateFlyers(dt){if(!W.flyers)return;for(const f of W.flyers){const p=f.g.position;let tx,tz,ty;

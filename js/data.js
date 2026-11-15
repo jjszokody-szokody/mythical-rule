@@ -1,6 +1,6 @@
 // Mythical Rule — game data (buildings, jobs, laws, religions, stances, kingdoms, names)
 export const CELL = 4, GRID = 31, HALF = GRID / 2; // build grid: 31x31 cells of 4m around the castle
-export const DAY_SEC = 18, MONTH_DAYS = 10;           // 1 day = 18 s, 1 month = 10 days = 3 minutes (passes automatically)
+export const DAY_SEC = 60, MONTH_DAYS = 10;           // 1 day = 60 s, 1 month = 10 days = 10 minutes (passes automatically)
 export const MONTHS = ['Frostmoon','Thawmoon','Seedmoon','Bloommoon','Sunmoon','Firemoon','Harvestmoon','Ashmoon','Mistmoon','Duskmoon','Wolfmoon','Darkmoon'];
 
 // cost: resources; w,d: footprint in cells; jobs: {jobId: slots}; house: pop capacity; def: defense
